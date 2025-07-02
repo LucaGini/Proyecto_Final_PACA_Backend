@@ -1,0 +1,55 @@
+### Get all orders
+GET http://localhost:3000/api/orders
+
+### Get single order by ID
+GET http://localhost:3000/api/orders/your-order-id-here
+
+### Create new order
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+    "userId": "678fe607476f8c7cbc742e8c",
+    "orderItems": [
+        {
+            "productId": "678ed1d1bf576eea348f7c2d",
+            "quantity": 2,
+            "unitPrice": 30.00,
+            "subtotal": 60.00
+        },
+        {
+            "productId": "67978f986be6287af8303503",
+            "quantity": 5,
+            "unitPrice": 49.99,
+            "subtotal": 49.99
+        }
+    ],
+    "total": 109.99
+}
+
+### Update order
+PUT http://localhost:3000/api/orders/
+Content-Type: application/json
+
+{
+    "status": "completed",
+    "orderItems": [
+        {
+            "productId": "product-id-1",
+            "quantity": 3,
+            "unitPrice": 29.99,
+            "subtotal": 89.97
+        }
+    ]
+}
+
+### Delete order
+DELETE http://localhost:3000/api/orders/your-order-id-here
+
+
+POST http://localhost:3000/api/order/update
+Content-Type: application/json
+
+{
+    "email": "luisinagutierrez2618@gmail.com"
+}

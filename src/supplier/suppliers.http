@@ -1,0 +1,53 @@
+### obtener todas las provincias
+
+GET http://localhost:3000/api/suppliers
+
+### obtener un producto por id ----- 1 es el id del producto
+
+GET http://localhost:3000/api/suppliers/1   
+
+### crear un nuevo producto
+
+POST http://localhost:3000/api/suppliers
+Content-Type: application/json
+
+{
+    "cuit": 30449876542 ,
+    "businessName": "Nekea",
+    "phone": "3418624361",
+    "email": "Nekeastork@gmail.com",
+    "city": "654e64a3c4ea1def4fa94fa0",
+    "products":[]
+}
+
+### modificar un producto (PUT - recurso completo e idempotente)
+
+PUT http://localhost:3000/api/suppliers/1
+Content-Type: application/json
+
+{
+    "id": 2,
+    "cuil": 2036281041 ,
+    "businessName": "Baggy",
+    "phone": 3412492518,
+    "webPage": "baggy.com",
+    "email": "baggy@gmail.com"
+}
+
+### modificar un producto (PATCH  - recurso parcial)
+
+PATCH http://localhost:3000/api/suppliers/1
+Content-Type: application/json
+
+{
+    "id": 3,
+    "cuil": 2025982081 ,
+    "businessName": "Tentroya",
+    "phone": 3417209756,
+    "webPage": "tentroya.com",
+    "email": "tentroya@gmail.com"
+}
+
+### borrar un producto
+
+DELETE http://localhost:3000/api/suppliers/1

@@ -1,0 +1,6 @@
+POST http://localhost:3000/api/auth/password/recovery
+Content-Type: application/json
+
+{
+    "email": "luisinagutierrez2618@gmail.com"
+}

@@ -1,0 +1,52 @@
+### obtener todos los productos
+
+GET http://localhost:3000/api/products
+
+### obtener un producto por id ----- 1 es el id del producto
+
+GET http://localhost:3000/api/products/1   
+
+### crear un nuevo producto  YA NO FUNCIONA DE ESTA MANERA (por el tema de la imagesn)
+
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+  "name": "Cartera 2 prueba" ,
+  "description":"Una cartera imprescindible para tu colección, con una correa ajustable y un diseño perfecto.",
+  "price": 120000,
+  "stock": 10,
+  "image": "https://ugosantini.com.ar/wp-content/uploads/2023/04/leyre-violeta-mayo.jpg",
+  //"image": "../../uploadsProductsPhotographs/Cartera1.jpg",
+  "category": "654e0d58e435fe829c912e2d",
+  "supplier": "654e0e33e435fe829c912e2f"
+}
+
+### modificar un producto (PUT - recurso completo e idempotente)
+
+PUT http://localhost:3000/api/products/1
+Content-Type: application/json
+
+### modificar un producto (PATCH  - recurso parcial)
+
+PATCH http://localhost:3000/api/products/65577d84b1e73fafe6888704
+Content-Type: application/json
+
+{
+  "name": "Cartera 2 prueba" ,
+  "description":"Una cartera imprescindible para tu colección, con una correa ajustable y un diseño perfecto.",
+  "price": 120000,
+  "stock": 10,
+  "image": "https://ugosantini.com.ar/wp-content/uploads/2023/04/leyre-violeta-mayo.jpg",
+  "category": "654e0d58e435fe829c912e2d",
+  "supplier": "654e0e33e435fe829c912e2f"
+}
+
+
+
+###barra de busqueda
+GET http://localhost:3000/api/products/search?query=mochi
+
+
+### borrar un producto
+GET http://localhost:3000/api/products/67880cf269c71bef9c9957c6/verify-stock?quantity=3
