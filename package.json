@@ -1,5 +1,5 @@
 {
-  "name": "tp-dsw-3k3-be-gini-griva-gutierrez",
+  "name": "proyecto_final_paca_backend_frattin_gini_gutierrez",
   "type": "module",
   "version": "1.0.0",
   "description": "",
@@ -19,7 +19,6 @@
     "@types/multer": "^1.4.11",
     "all": "^0.0.0",
     "bcrypt": "^5.1.1",
-    "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

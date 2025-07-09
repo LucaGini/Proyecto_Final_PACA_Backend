@@ -5,9 +5,9 @@ import { MongoHighlighter } from "@mikro-orm/mongo-highlighter";
 export const orm = await MikroORM.init({
   entities: ['dist/**/*.entity.js'],
   entitiesTs: ['src/**/*.entity.ts'],
-  dbName: 'Ecommerce2023',
+  dbName: 'ProyectoFinalPACA',
   type: 'mongo',
-  clientUrl: 'mongodb://127.0.0.1:27017',
+  clientUrl: 'mongodb+srv://tomasfrattin:i4xujh43chsIhjeo@proyectofinalpaca.rgmjijc.mongodb.net/?retryWrites=true&w=majority&appName=ProyectoFinalPACA',
   highlighter: new MongoHighlighter(),
   debug: true,
   allowGlobalContext: true,
