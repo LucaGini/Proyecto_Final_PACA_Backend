@@ -173,7 +173,7 @@ async function cancelOrder(order: Order) {
 
     if (user?.email) {
       console.log('Sending order cancellation email to:', user.email);
-      await mailService.sendOrderCancellationEmail(user.email, orderDate);
+      await mailService.sendOrderCancellationEmail(user.email, order.orderNumber);
     } else {
       console.warn('No email found for user:', order.user._id.toString());
     }
