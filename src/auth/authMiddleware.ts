@@ -10,6 +10,7 @@ interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
+// LOGUEADOS O ADMINISTRADORO O CLIENTE
 function authenticateRole(role: 'administrador' | 'cliente') {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
@@ -32,3 +33,33 @@ function authenticateRole(role: 'administrador' | 'cliente') {
 
 export const authenticateAdmin = authenticateRole('administrador');
 export const authenticateClient = authenticateRole('cliente');
+
+//TODOS MENOS ADMINISTRADORES
+export function blockAdminIfLogged(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return next();
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded: any = jwt.verify(token, SECRET_KEY);
+    if (decoded.privilege === 'administrador') {
+      return res.status(403).json({ message: 'Acceso denegado para administradores' });
+    }
+    req.user = decoded;
+    return next();
+  } catch (error) {
+    return next();
+  }
+}
+
+// SOLO NO LOGUEADOS
+export function onlyAnonymous(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return next();
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded: any = jwt.verify(token, SECRET_KEY);
+    return res.status(403).json({ message: 'Esta ruta es solo para usuarios no logueados' });
+  } catch (error) {
+    return next();
+  }
+}
