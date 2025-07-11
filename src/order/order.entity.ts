@@ -11,6 +11,9 @@ interface OrderItem {
 
 @Entity()
 export class Order extends BaseEntity {
+    @Property({ nullable: false, unique: true })
+    orderNumber!: string;
+
     @Property({ nullable: false, default: 'pending' })
     status!: string;
 

@@ -56,6 +56,34 @@ async function create(req: Request, res: Response){
 
     const user = await em.findOneOrFail(User, {id: userId});
 
+    // Generar el número de orden único directamente aquí
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    
+    // Buscar el último número de orden para determinar el siguiente secuencial
+    const allOrders = await em.find(Order, {}, {
+      orderBy: { orderNumber: 'DESC' },
+      fields: ['orderNumber'],
+      limit: 1
+    });
+    
+    const lastOrder = allOrders.length > 0 ? allOrders[0] : null;
+    
+    let sequentialNumber = 1;
+    
+    if (lastOrder?.orderNumber) {
+      const currentYearMonth = `${year}${month}`;
+      const lastOrderYearMonth = lastOrder.orderNumber.substring(0, 6);
+      
+      if (lastOrderYearMonth === currentYearMonth) {
+        const lastSequential = parseInt(lastOrder.orderNumber.substring(6));
+        sequentialNumber = lastSequential + 1;
+      }
+    }
+    
+    // Formato: YYYYMM + número secuencial (6 dígitos)
+    const orderNumber = `${year}${month}${String(sequentialNumber).padStart(6, '0')}`;
+
     const orderItemsWithProduct = await Promise.all( /// DESDE ACÁ HASTA EL CREATE, ES PARA LA ACTUALIZACIÓN DEL STOCK 
       orderItems.map(async (item: any) => { 
         const product = await em.findOneOrFail(Product, { id: item.productId });
@@ -75,6 +103,7 @@ async function create(req: Request, res: Response){
     );
 
     const order = em.create(Order, {
+      orderNumber,
       status: 'pending',
       orderDate: new Date(),
       user,
@@ -187,11 +216,36 @@ async function findOrdersByEmail(req: Request, res: Response) {
   }
 }
 
+async function findByOrderNumber(req: Request, res: Response) {
+  try {
+    const orderNumber = req.params.orderNumber;
+    const order = await em.findOneOrFail(Order, { orderNumber }, {
+      populate: ['user'],
+      fields: [
+        '*',
+        'user.id',
+        'user.firstName',
+        'user.lastName',
+        'user.email',
+        'user.phone',
+        'user.street',
+        'user.streetNumber',
+        'user.city'
+      ]
+    });
+    
+    res.status(200).json({ message: 'Order found successfully', data: order });
+  } catch (error: any) {
+    res.status(404).json({ message: 'Order not found' });
+  }
+}
+
 export const controller = {
   findAll,
   findOne,
   create,
   update,
   remove,
-  findOrdersByEmail
+  findOrdersByEmail,
+  findByOrderNumber
 }

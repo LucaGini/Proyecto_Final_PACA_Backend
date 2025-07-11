@@ -4,6 +4,12 @@ GET http://localhost:3000/api/orders
 ### Get single order by ID
 GET http://localhost:3000/api/orders/your-order-id-here
 
+### Get order by order number
+GET http://localhost:3000/api/orders/number/202501000001
+
+### Get orders by user email
+GET http://localhost:3000/api/orders/user/email/user@example.com
+
 ### Create new order
 POST http://localhost:3000/api/orders
 Content-Type: application/json
@@ -28,7 +34,7 @@ Content-Type: application/json
 }
 
 ### Update order
-PUT http://localhost:3000/api/orders/
+PUT http://localhost:3000/api/orders/your-order-id-here
 Content-Type: application/json
 
 {
@@ -43,11 +49,16 @@ Content-Type: application/json
     ]
 }
 
-### Delete order
+### Cancel order (within 24 hours)
+PUT http://localhost:3000/api/orders/your-order-id-here
+Content-Type: application/json
+
+{
+    "status": "cancelled"
+}
+
+### Delete order (Admin only)
 DELETE http://localhost:3000/api/orders/your-order-id-here
-
-
-POST http://localhost:3000/api/order/update
 Content-Type: application/json
 
 {
