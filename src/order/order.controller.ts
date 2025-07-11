@@ -56,11 +56,9 @@ async function create(req: Request, res: Response){
 
     const user = await em.findOneOrFail(User, {id: userId});
 
-    // Generar el número de orden único directamente aquí
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
     
-    // Buscar el último número de orden para determinar el siguiente secuencial
     const allOrders = await em.find(Order, {}, {
       orderBy: { orderNumber: 'DESC' },
       fields: ['orderNumber'],
