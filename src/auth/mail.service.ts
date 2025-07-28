@@ -36,7 +36,7 @@ export class MailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendOrderCancellationEmail(to: string, orderDate: Date) {
+  async sendOrderCancellationEmail(to: string, orderNumber: string) {
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: to,
@@ -44,7 +44,7 @@ export class MailService {
       html: `
       <h1>Tu orden ha sido cancelada</h1>
         <p>Lo sentimos mucho</p>
-        <p>La orden que realizó el día <strong>${orderDate}</strong> ha sido cancelada.</p>
+        <p>La orden número <strong>#${orderNumber}</strong> ha sido cancelada.</p>
        <p>Disculpe las molestias ocasionadas. Si tiene alguna pregunta, ¡por favor contáctenos !</p>
       `
     };
