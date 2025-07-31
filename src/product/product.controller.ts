@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Product } from './product.entity.js';
 import { orm } from '../shared/db/orm.js';
+import { deleteFromCloudinary, extractPublicIdFromUrl } from '../shared/db/image_processor/cloudinary_middleware.js';
 
 const em = orm.em;
 
@@ -30,10 +31,11 @@ async function findOne(req: Request, res: Response){
 async function add(req: Request, res: Response) {
   try {
     const { name, description, price, stock, category, supplier } = req.body;
-    let imagePath = '';
+    let imageUrl = '';
 
+    // Cloudinary automáticamente sube la imagen y nos da la URL
     if (req.file) {
-      imagePath = 'uploads/' + req.file.filename;
+      imageUrl = (req.file as any).path; // Cloudinary storage guarda la URL completa en 'path'
     }
 
     const existingProduct = await em.findOne(Product, { name });
@@ -47,7 +49,7 @@ async function add(req: Request, res: Response) {
       description,
       price: parseFloat(price),
       stock: parseInt(stock),
-      image: imagePath,
+      image: imageUrl, // Ahora guardamos la URL completa de Cloudinary
       category,
       supplier
     });
@@ -75,6 +77,20 @@ async function add(req: Request, res: Response) {
           return res.status(400).json({ message: 'Error', error: 'The new name is already used' });
         }
       }
+
+      // Si se sube una nueva imagen, actualizar la URL
+      if (req.file) {
+        // Eliminar la imagen anterior de Cloudinary si existe
+        if (existingProduct.image) {
+          const publicId = extractPublicIdFromUrl(existingProduct.image);
+          if (publicId) {
+            await deleteFromCloudinary(publicId);
+          }
+        }
+        // Asignar la nueva URL de imagen
+        req.body.image = (req.file as any).path;
+      }
+
       em.assign(existingProduct, req.body);
       await em.flush();
       res
@@ -91,8 +107,17 @@ async function add(req: Request, res: Response) {
     const id = req.params.id;
     const product = await em.findOne(Product, { id });
     if (!product) {
-      return res.status(404).json({ message: 'Province not found' });
+      return res.status(404).json({ message: 'Product not found' });
     }
+
+    // Eliminar la imagen de Cloudinary antes de eliminar el producto
+    if (product.image) {
+      const publicId = extractPublicIdFromUrl(product.image);
+      if (publicId) {
+        await deleteFromCloudinary(publicId);
+      }
+    }
+
     await em.removeAndFlush(product);
     res
       .status(200)

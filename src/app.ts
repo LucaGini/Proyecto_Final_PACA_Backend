@@ -1,5 +1,4 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //ver de eliminar esta linea en producción
 
 import 'reflect-metadata';
 import cors from 'cors';
@@ -52,8 +51,8 @@ app.use('/api/orders', orderRouter);
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
 
-//static route for images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Ya no necesitamos servir archivos estáticos porque usamos Cloudinary
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use((_, res) => {
   return res.status(404).send({message: 'Resource not found!'});
