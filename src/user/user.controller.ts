@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import { User } from './user.entity.js';
 import { orm } from '../shared/db/orm.js';
 import bcrypt from 'bcrypt';
+import { Order } from '../order/order.entity.js';
+import { Product } from '../product/product.entity.js';
 
 const em = orm.em.fork();
 
@@ -80,7 +82,25 @@ async function update(req: Request, res: Response){
   }
 };
 
-async function softDeleteUser(req: Request, res: Response) {
+async function forceCancelOrder(order: Order) {
+  for (const item of order.orderItems) {
+    const product = await em.findOne(Product, { id: item.productId });
+    if (product) {
+      product.stock += item.quantity; // Devolver stock
+      await em.persistAndFlush(product);
+    }
+  }
+
+  if (order.user && order.user._id) {
+    const user = await em.findOne(User, { id: order.user._id.toString() });
+  }
+
+  order.status = 'cancelled';
+  order.updatedDate = new Date();
+  await em.persistAndFlush(order);
+}
+
+export async function softDeleteUser(req: Request, res: Response) {
   try {
     const id = req.params.id;
     const user = await em.findOne(User, { id });
@@ -89,10 +109,18 @@ async function softDeleteUser(req: Request, res: Response) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const pendingOrders = await em.find(Order, {
+      user: user,
+      status: 'pending'
+    });
+
+    for (const order of pendingOrders) {
+      await forceCancelOrder(order);
+    }
     user.isActive = false;
     await em.persistAndFlush(user);
 
-    return res.status(200).json({ message: 'User deactivated successfully' });
+    return res.status(200).json({ message: 'User deactivated and pending orders cancelled successfully' });
   } catch (error: any) {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
