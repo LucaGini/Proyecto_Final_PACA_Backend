@@ -136,7 +136,7 @@ async function findProductByName(req: Request, res: Response) {
     if (product) {
       res.status(200).json({ message: 'found one product', data: product });
     } else {
-      res.status(404).json({ message: 'product not found' });
+      res.json(null);
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });

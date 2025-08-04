@@ -112,7 +112,7 @@ async function findCityByPostCode(req: Request, res: Response) {
     if (city) {
       res.status(200).json({ message: 'found one city', data: city });
     } else {
-      res.status(404).json({ message: 'city not found' });
+      res.json(null);
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });

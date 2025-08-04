@@ -110,7 +110,7 @@ async function findUserByEmail(req: Request, res: Response){
     if (user) {
       res.status(200).json({ message: 'found one user', data: user });
     } else {
-      res.status(404).json({ message: 'user not found' });
+      res.json(null);
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
