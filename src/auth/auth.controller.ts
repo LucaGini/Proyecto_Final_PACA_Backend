@@ -49,6 +49,9 @@ export const loginUser = async (req: Request, res: Response) => {
   try {
     const findUser = await em.findOne(User, { email: userData.email }) as Loaded<User, never>;
     if (!findUser) return res.status(401).send({message: 'Invalid user'});
+    if (findUser.isActive === false) {
+      return res.status(403).json({ message: 'Usuario desactivado' });
+    }
     const isPasswordValid = await bcrypt.compare(userData.password, findUser.password)
 
     if (!isPasswordValid) return res.status(401).json({message: 'Credenciales inválidas'});

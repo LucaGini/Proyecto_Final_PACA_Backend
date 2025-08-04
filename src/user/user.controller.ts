@@ -6,11 +6,31 @@ import bcrypt from 'bcrypt';
 const em = orm.em.fork();
 
 async function findAll(req: Request, res: Response){
-  try{
-    const users = await em.find(User, {});
-    res.status(200).json({message:'found all users',data: users});
-  } catch (error: any) {
-    res.status(404).json({message: error.message});
+  try {
+    const isActiveParam = req.query.isActive;
+    const searchTerm = req.query.q?.toString().trim().toLowerCase();
+
+    const filter: any = {}; 
+
+    if (isActiveParam === 'true') {
+      filter.isActive = true;
+    } else if (isActiveParam === 'false') {
+      filter.isActive = false;
+    }
+
+    if (searchTerm) {
+      filter.$or = [
+        { firstName: { $ilike: `%${searchTerm}%` } },
+        { lastName: { $ilike: `%${searchTerm}%` } },
+        { email: { $ilike: `%${searchTerm}%` } }
+      ];
+    }
+
+    const users = await em.find(User, filter);
+    res.json({ data: users });
+  } catch (err) {
+    console.error('Error al obtener usuarios:', err);
+    res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 };
 
@@ -60,21 +80,23 @@ async function update(req: Request, res: Response){
   }
 };
 
-async function remove(req: Request, res: Response) {
+async function softDeleteUser(req: Request, res: Response) {
   try {
     const id = req.params.id;
     const user = await em.findOne(User, { id });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await em.removeAndFlush(user);
-    res.status(200).json({ message: 'User deleted successfully' });
+    user.isActive = false;
+    await em.persistAndFlush(user);
+
+    return res.status(200).json({ message: 'User deactivated successfully' });
   } catch (error: any) {
-    res.status(404).json({ message: error.message });
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-}
+};
 
 async function signUp(req: Request, res: Response) {
   try {
@@ -136,12 +158,13 @@ async function updatePassword(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
+
   
   export const controller = {  
     findAll, 
     findOne,
     update,
-    remove,
+    softDeleteUser,
     signUp,
     findUserByEmail,
     updatePassword
