@@ -100,9 +100,9 @@ async function findProvinceByName(req: Request, res: Response) {
     const province = await em.findOne(Province, { name });
 
     if (province) {
-      res.status(200).json({ message: 'found one province', data: province });
+      res.status(404).json({ message: 'found one province', data: province });
     } else {
-      res.json(null);
+      res.status(200).json({ message: 'province not found', data: province });
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });

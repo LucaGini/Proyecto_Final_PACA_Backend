@@ -134,9 +134,9 @@ async function findProductByName(req: Request, res: Response) {
     const product = await em.findOne(Product, { name });
 
     if (product) {
-      res.status(200).json({ message: 'found one product', data: product });
+      res.status(404).json({ message: 'found one product', data: product });
     } else {
-      res.json(null);
+      res.status(200).json({ message: 'product not found', data: product });
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });

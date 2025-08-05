@@ -110,9 +110,9 @@ async function findCityByPostCode(req: Request, res: Response) {
     const postCode = req.params.postCode;
     const city = await em.findOne(City, { postCode });
     if (city) {
-      res.status(200).json({ message: 'found one city', data: city });
+      res.status(404).json({ message: 'found one city', data: city });
     } else {
-      res.json(null);
+      res.status(200).json({ message: 'city not found', data: city });
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
