@@ -51,5 +51,45 @@ export class MailService {
 
     await this.transporter.sendMail(mailOptions);
   }
+
+  async sendGoodbyeEmail(to: string, firstName: string) {
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: to,
+      subject: 'Lamentamos tu partida',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333; text-align: center;">¡Hasta la vista, ${firstName}!</h1>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Lamentamos profundamente que hayas decidido darte de baja de nuestro sistema. 
+            Ha sido un placer tenerte como parte de nuestra comunidad.
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Tu cuenta de usuario quedará <strong>inactiva permanentemente</strong>, pero queremos que sepas 
+            que siempre serás bienvenido/a si decides regresar en el futuro.
+          </p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic; color: #666; text-align: center;">
+              "Las despedidas no son para siempre, son simplemente hasta que nos volvamos a encontrar."
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Gracias por haber sido parte de nuestro proyecto. Te deseamos lo mejor en tus futuros emprendimientos.
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555; text-align: center;">
+            <strong>¡Que tengas mucho éxito!</strong><br>
+            El equipo de PACA
+          </p>
+        </div>
+      `
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
   
 }

@@ -4,6 +4,7 @@ import { orm } from '../shared/db/orm.js';
 import bcrypt from 'bcrypt';
 import { Order } from '../order/order.entity.js';
 import { Product } from '../product/product.entity.js';
+import { MailService } from '../auth/mail.service.js';
 
 const em = orm.em.fork();
 
@@ -117,10 +118,21 @@ export async function softDeleteUser(req: Request, res: Response) {
     for (const order of pendingOrders) {
       await forceCancelOrder(order);
     }
+    
     user.isActive = false;
     await em.persistAndFlush(user);
 
-    return res.status(200).json({ message: 'User deactivated and pending orders cancelled successfully' });
+    // Enviar email de despedida
+    try {
+      const mailService = new MailService();
+      await mailService.sendGoodbyeEmail(user.email, user.firstName);
+    } catch (mailError) {
+      console.error('Error sending goodbye email:', mailError);
+    }
+
+    return res.status(200).json({ 
+      message: 'User deactivated and pending orders cancelled successfully. Goodbye email sent.' 
+    });
   } catch (error: any) {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
