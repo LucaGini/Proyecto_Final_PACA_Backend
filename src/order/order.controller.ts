@@ -110,6 +110,39 @@ async function create(req: Request, res: Response){
     });
 
     await em.persistAndFlush(order);
+
+    // Enviar email de confirmación de compra
+    try {
+      // Obtener los nombres de los productos para el email
+      const orderItemsWithNames = await Promise.all(
+        orderItemsWithProduct.map(async (item) => {
+          const product = await em.findOne(Product, { id: item.productId });
+          return {
+            productName: product?.name || 'Producto no encontrado',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal
+          };
+        })
+      );
+
+      await mailService.sendOrderConfirmationEmail(
+        user.email,
+        user.firstName,
+        {
+          orderNumber: order.orderNumber,
+          orderDate: order.orderDate!,
+          total: order.total,
+          orderItems: orderItemsWithNames
+        }
+      );
+      
+      console.log('Order confirmation email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
+      // No fallar la creación de la orden si el email falla
+    }
+
     res.status(201).json({message: 'Order created successfully', data: order});
   } catch (error: any){
     res.status(404).json({message: error.message});
