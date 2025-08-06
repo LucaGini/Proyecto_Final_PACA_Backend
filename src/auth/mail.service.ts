@@ -62,13 +62,12 @@ export class MailService {
           <h1 style="color: #333; text-align: center;">¡Hasta la vista, ${firstName}!</h1>
           
           <p style="font-size: 16px; line-height: 1.6; color: #555;">
-            Lamentamos profundamente que hayas decidido darte de baja de nuestro sistema. 
-            Ha sido un placer tenerte como parte de nuestra comunidad.
+            Lamentamos la baja de tu cuenta en nuuestro sistema. 
+            Fue un placer haberte tenido como parte de nuestra comunidad.
           </p>
           
           <p style="font-size: 16px; line-height: 1.6; color: #555;">
-            Tu cuenta de usuario quedará <strong>inactiva permanentemente</strong>, pero queremos que sepas 
-            que siempre serás bienvenido/a si decides regresar en el futuro.
+            Tu cuenta de usuario quedará <strong>inactiva permanentemente</strong>.
           </p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
