@@ -41,6 +41,9 @@ export class User extends BaseEntity {
     @Property({nullable: true, unique: true})
     resetPasswordExpires?: Date
 
+    @Property({nullable: true})
+    isActive?: boolean = true; 
+
     @OneToMany(() => Order, (order) => order.user, {cascade:[Cascade.ALL]})
     orders = new Collection<Order>(this);
 
