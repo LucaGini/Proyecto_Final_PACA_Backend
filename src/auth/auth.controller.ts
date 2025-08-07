@@ -8,6 +8,7 @@ import bcrypt from 'bcrypt';
 import { Loaded } from '@mikro-orm/core';
 import dotenv from 'dotenv';
 
+
 dotenv.config();
 
 const em = orm.em;
@@ -40,29 +41,49 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
+
+const verifyCaptcha = async (token: string) => {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY || 'TU_SECRET_KEY';
+  const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `secret=${secretKey}&response=${token}`,
+  });
+
+  const data = await response.json();
+  return data.success;
+};
+
+
 export const loginUser = async (req: Request, res: Response) => {
-  const userData = {
-      email: req.body.email,
-      password: req.body.password
-  }
+  const { email, password, captchaToken } = req.body;
 
   try {
-    const findUser = await em.findOne(User, { email: userData.email }) as Loaded<User, never>;
-    if (!findUser) return res.status(401).send({message: 'Invalid user'});
-    if (findUser.isActive === false) {
-      return res.status(403).json({ message: 'Usuario desactivado' });
+    const captchaValid = await verifyCaptcha(captchaToken);
+    if (!captchaValid) {
+      return res.status(400).json({ message: 'Captcha inválido' });
     }
-    const isPasswordValid = await bcrypt.compare(userData.password, findUser.password)
 
-    if (!isPasswordValid) return res.status(401).json({message: 'Credenciales inválidas'});
-    
-    const expiresIn = 24*60*60;
-    const accessToken = jwt.sign({ email: findUser.email, privilege: findUser.privilege }, SECRET_KEY, {expiresIn: expiresIn});
+    const findUser = await em.findOne(User, { email }) as Loaded<User, never>;
+    if (!findUser) return res.status(401).send({ message: 'Invalid user' });
+    if (!findUser.isActive) return res.status(403).json({ message: 'Usuario desactivado' });
+
+    const isPasswordValid = await bcrypt.compare(password, findUser.password);
+    if (!isPasswordValid) return res.status(401).json({ message: 'Credenciales inválidas' });
+
+    const expiresIn = 24 * 60 * 60;
+    const accessToken = jwt.sign(
+      { email: findUser.email, privilege: findUser.privilege },
+      SECRET_KEY,
+      { expiresIn }
+    );
+
     res.send({ accessToken });
   } catch (err) {
+    console.error(err);
     return res.status(500).send('Server error!');
   }
-}
+};
 
 export const controller = {
   resetPassword,
