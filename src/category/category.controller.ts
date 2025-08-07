@@ -62,7 +62,7 @@ async function update(req: Request, res: Response) {
       const duplicateCategory = await em.findOne(Category, { name: newName });
       if (duplicateCategory) {
         return res
-          .status(400)
+          .status(409)
           .json({ message: "Error", error: "The new name is already used" });
       }
     }
