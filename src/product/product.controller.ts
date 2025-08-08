@@ -101,8 +101,6 @@ async function add(req: Request, res: Response) {
         }
       }
 
-
-      console.log('LA BANDERA', req.body.mailSent);
       em.assign(existingProduct, req.body);
       await em.flush();      
       res
