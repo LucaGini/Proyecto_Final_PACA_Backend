@@ -112,9 +112,9 @@ async function findCategoryByName(req: Request, res: Response) {
     const category = await em.findOne(Category, { name });
 
     if (category) {
-      res.status(200).json({ message: 'found one category', data: category });
+      res.status(404).json({ message: 'found one category', data: category });
     } else {
-      res.status(404).json({ message: 'category not found' });
+      res.status(200).json({ message: 'category not found' });
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });

@@ -109,8 +109,6 @@ async function add(req: Request, res: Response) {
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-
-    // Eliminar la imagen de Cloudinary antes de eliminar el producto
     if (product.image) {
       const publicId = extractPublicIdFromUrl(product.image);
       if (publicId) {
@@ -134,9 +132,9 @@ async function findProductByName(req: Request, res: Response) {
     const product = await em.findOne(Product, { name });
 
     if (product) {
-      res.status(200).json({ message: 'found one product', data: product });
+      res.status(404).json({ message: 'found one product', data: product });
     } else {
-      res.status(404).json({ message: 'product not found' });
+      res.status(200).json({ message: 'product not found' });
     }
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
