@@ -91,4 +91,34 @@ export class MailService {
     await this.transporter.sendMail(mailOptions);
   }
   
+  async sendRestockRequestEmail(to: string, productName: string) {
+  const mailOptions = {
+    from: process.env.MAIL_USER,
+    to,
+    subject: `Reabastecimiento solicitado para: ${productName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+        <h1 style="color: #333;">Solicitud de Reabastecimiento</h1>
+        <p style="font-size: 16px; color: #555;">
+          Estimado proveedor,
+        </p>
+        <p style="font-size: 16px; color: #555;">
+          Se ha detectado que el producto <strong>${productName}</strong> necesita ser reabastecido.
+        </p>
+        <p style="font-size: 16px; color: #555;">
+          Le solicitamos por favor revisar el stock y realizar el envío correspondiente lo antes posible.
+        </p>
+        <p style="font-size: 16px; color: #555;">
+          Muchas gracias por su colaboración.
+        </p>
+        <p style="font-size: 16px; color: #555;">
+          Atentamente,<br>
+          El equipo de PACA
+        </p>
+      </div>
+    `
+  };
+
+  await this.transporter.sendMail(mailOptions);
+}
 }

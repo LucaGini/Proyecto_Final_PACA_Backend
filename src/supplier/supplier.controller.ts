@@ -2,8 +2,9 @@ import express, { Request, Response } from 'express';
 import { Supplier } from './supplier.entity.js';
 import { orm } from '../shared/db/orm.js';
 import { Product } from '../product/product.entity.js';	
+import { MailService } from '../auth/mail.service.js';
 
-
+const mailService = new MailService();
 const em = orm.em;
 
 async function findAll(req: Request, res: Response){
@@ -124,6 +125,36 @@ async function findSupplierByCuit(req: Request, res: Response){
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+async function requestRestock(req: Request, res: Response) {
+  try {
+    const supplierId = req.params.id;
+    const { productId } = req.body;
+    const supplier = await em.findOne(Supplier, { id: supplierId });
+    if (!supplier) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+
+    const product = await em.findOne(Product, { id: productId });
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    if (!supplier.email) {
+      return res.status(400).json({ message: 'Supplier has no email address' });
+    }
+
+    if (supplier.email) {
+      await mailService.sendRestockRequestEmail(supplier.email, product.name);
+      product.mailSent = true;
+      await em.flush();
+      res.status(200).json({ message: 'Restock request email sent', data: product
+    });
+  }
+
+  } catch (error: any) {
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+}
+
 
   export const controller = {  
     findAll, 
@@ -132,5 +163,6 @@ async function findSupplierByCuit(req: Request, res: Response){
     update,
     remove,
     findProductsBySupplier,
-    findSupplierByCuit
+    findSupplierByCuit,
+    requestRestock
   };
