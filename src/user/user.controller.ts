@@ -7,6 +7,7 @@ import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
 
 const em = orm.em.fork();
+const mailService = new MailService();
 
 async function findAll(req: Request, res: Response){
   try {
@@ -156,6 +157,12 @@ async function signUp(req: Request, res: Response) {
 
     const user = em.create(User, userData);
     await em.flush();
+
+    try {
+      await mailService.sendWelcomeEmail(userData.email, userData.firstName);
+    } catch (mailError) {
+      console.error('Error enviando correo de bienvenida:', mailError);
+    }
 
     res.status(201).json({ message: 'User created successfully', data: user });
   } 

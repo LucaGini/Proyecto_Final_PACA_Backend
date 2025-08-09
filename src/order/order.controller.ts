@@ -54,7 +54,7 @@ async function create(req: Request, res: Response){
   try{
     const {userId, orderItems, total} = req.body;
 
-    const user = await em.findOneOrFail(User, {id: userId});
+    const user = await em.findOneOrFail(User, {id: userId}, {populate: ['city']});
 
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -110,6 +110,41 @@ async function create(req: Request, res: Response){
     });
 
     await em.persistAndFlush(order);
+
+    // Enviar email de confirmación de compra
+    try {
+      // Obtener los nombres de los productos para el email
+      const orderItemsWithNames = await Promise.all(
+        orderItemsWithProduct.map(async (item) => {
+          const product = await em.findOne(Product, { id: item.productId });
+          return {
+            productName: product?.name || 'Producto no encontrado',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal
+          };
+        })
+      );
+
+      await mailService.sendOrderConfirmationEmail(
+        user.email,
+        user.firstName,
+        {
+          orderNumber: order.orderNumber,
+          orderDate: order.orderDate!,
+          total: order.total,
+          orderItems: orderItemsWithNames,
+          cityName: user.city?.name || '',
+          citySurcharge: user.city?.surcharge || 0
+        }
+      );
+      
+      console.log('Order confirmation email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
+      // No fallar la creación de la orden si el email falla
+    }
+
     res.status(201).json({message: 'Order created successfully', data: order});
   } catch (error: any){
     res.status(404).json({message: error.message});
@@ -126,6 +161,13 @@ async function update(req: Request, res: Response) {
       const cancelResult = await cancelOrder(order);
       if (!cancelResult.success) {
         return res.status(400).json({ message: cancelResult.message });
+      }
+    }
+
+    if (status === 'completed') {
+      const completeResult = await completeOrder(order);
+      if (!completeResult.success) {
+        return res.status(400).json({ message: completeResult.message });
       }
     }
 
@@ -182,6 +224,28 @@ async function cancelOrder(order: Order) {
   }
 
   return { success: true };
+}
+
+async function completeOrder(order: Order) {
+  try {
+    if (order.user && order.user._id) {
+      const user = await em.findOne(User, { id: order.user._id.toString() });
+
+      if (user?.email) {
+        console.log('Sending order completion email to:', user.email);
+        await mailService.sendOrderCompletionEmail(user.email, order.orderNumber);
+      } else {
+        console.warn('No email found for user:', order.user._id.toString());
+      }
+    } else {
+      console.warn('Order has no associated user or user ID');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error completing order:', error);
+    return { success: false, message: 'Error al enviar correo de completado' };
+  }
 }
 
 async function remove(req: Request, res: Response){
