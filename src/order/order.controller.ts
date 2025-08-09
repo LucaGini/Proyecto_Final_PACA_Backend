@@ -54,7 +54,7 @@ async function create(req: Request, res: Response){
   try{
     const {userId, orderItems, total} = req.body;
 
-    const user = await em.findOneOrFail(User, {id: userId});
+    const user = await em.findOneOrFail(User, {id: userId}, {populate: ['city']});
 
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -133,7 +133,9 @@ async function create(req: Request, res: Response){
           orderNumber: order.orderNumber,
           orderDate: order.orderDate!,
           total: order.total,
-          orderItems: orderItemsWithNames
+          orderItems: orderItemsWithNames,
+          cityName: user.city?.name || '',
+          citySurcharge: user.city?.surcharge || 0
         }
       );
       

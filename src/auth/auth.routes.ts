@@ -4,6 +4,6 @@ import { authenticateClient, onlyAnonymous } from "../auth/authMiddleware.js";
 
 export const authRouter = Router();
 
-authRouter.post('/password/recovery',authenticateClient, controller.resetPassword);
+authRouter.post('/password/recovery', controller.resetPassword);
 authRouter.post('/login',onlyAnonymous, controller.loginUser)
 

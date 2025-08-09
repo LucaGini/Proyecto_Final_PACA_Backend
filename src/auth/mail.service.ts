@@ -30,6 +30,12 @@ export class MailService {
         <p>Has solicitado reestablecer tu contraseña. Haz clic en el botón de abajo para cambiarla:</p>
         <a href="${frontendUrl}?token=${token}" style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">Cambiar/actualizar contraseña</a>
         <p>Si no has solicitado este cambio, puedes ignorar este correo.</p>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            <strong>¡Gracias por elegirnos!</strong><br>
+            El equipo de PACA
+          </p>
+        </div>
       `
     };
 
@@ -160,6 +166,8 @@ export class MailService {
       unitPrice: number;
       subtotal: number;
     }>;
+    cityName?: string;
+    citySurcharge?: number;
   }) {
     const formattedDate = orderData.orderDate.toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -177,6 +185,27 @@ export class MailService {
         <td style="padding: 12px; text-align: right;">$${item.subtotal.toFixed(2)}</td>
       </tr>
     `).join('');
+
+    // Calcular subtotal sin surcharge y el monto del surcharge
+    const subtotalWithoutSurcharge = orderData.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const surchargeAmount = orderData.citySurcharge ? (subtotalWithoutSurcharge * orderData.citySurcharge / 100) : 0;
+    
+    // Crear filas adicionales para mostrar el desglose del costo
+    const surchargeRowHtml = orderData.citySurcharge && orderData.citySurcharge > 0 ? `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td colspan="3" style="padding: 12px; text-align: right; color: #333;">Subtotal:</td>
+        <td style="padding: 12px; text-align: right; color: #333;">$${subtotalWithoutSurcharge.toFixed(2)}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td colspan="3" style="padding: 12px; text-align: right; color: #333;">Recargo ${orderData.cityName} (${orderData.citySurcharge}%):</td>
+        <td style="padding: 12px; text-align: right; color: #333;">$${surchargeAmount.toFixed(2)}</td>
+      </tr>
+    ` : `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td colspan="3" style="padding: 12px; text-align: right; color: #333;">Subtotal:</td>
+        <td style="padding: 12px; text-align: right; color: #333;">$${subtotalWithoutSurcharge.toFixed(2)}</td>
+      </tr>
+    `;
 
     const mailOptions = {
       from: process.env.MAIL_USER,
@@ -208,6 +237,7 @@ export class MailService {
               </thead>
               <tbody>
                 ${itemsHtml}
+                ${surchargeRowHtml}
                 <tr style="background-color: #f8f9fa; font-weight: bold;">
                   <td colspan="3" style="padding: 15px; text-align: right; color: #333;">Total:</td>
                   <td style="padding: 15px; text-align: right; color: #333; font-size: 18px;">$${orderData.total.toFixed(2)}</td>

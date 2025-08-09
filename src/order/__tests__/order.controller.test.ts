@@ -15,6 +15,12 @@ jest.mock('../../shared/db/orm.js', () => ({
   }
 }));
 
+jest.mock('../../auth/mail.service.js', () => ({
+  MailService: jest.fn().mockImplementation(() => ({
+    sendOrderConfirmationEmail: jest.fn().mockResolvedValue(undefined)
+  }))
+}));
+
 describe('Order Controller', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -122,7 +128,17 @@ describe('Order Controller', () => {
         }
       } as unknown as Request;
 
-      const mockUser = { id: '1', firstName: 'John', lastName: 'Doe' };
+      const mockUser = { 
+        id: '1', 
+        firstName: 'John', 
+        lastName: 'Doe',
+        email: 'john@example.com',
+        city: {
+          id: '1',
+          name: 'Buenos Aires',
+          surcharge: 5
+        }
+      };
       const mockProduct = { id: '1', name: 'Product 1', stock: 5 };
       const mockOrder = {
         id: '1',
