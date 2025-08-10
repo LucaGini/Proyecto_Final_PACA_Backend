@@ -1,4 +1,4 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //ver de eliminar esta linea en producción
+//process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //ver de eliminar esta linea en producción
 
 import 'reflect-metadata';
 import cors from 'cors';

@@ -14,8 +14,10 @@ async function findAll(req: Request, res: Response){
     const isActiveParam = req.query.isActive;
     const searchTerm = req.query.q?.toString().trim().toLowerCase();
 
-    const filter: any = {}; 
-
+    const filter: any = {
+      privilege: 'cliente' 
+    };
+ 
     if (isActiveParam === 'true') {
       filter.isActive = true;
     } else if (isActiveParam === 'false') {
@@ -109,6 +111,10 @@ export async function softDeleteUser(req: Request, res: Response) {
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.privilege === 'administrador') {
+      return res.status(400).json({ message: 'Cannot deactivate an admin user' }); 
     }
 
     const pendingOrders = await em.find(Order, {
