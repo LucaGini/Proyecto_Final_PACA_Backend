@@ -17,7 +17,8 @@ export const createDefaultAdmin = async () => {
                 privilege: 'administrador',
                 firstName: 'Admin',
                 lastName: 'Admin',
-                phone: 123456789
+                phone: 123456789,
+                isActive: true
             });
 
             await em.persistAndFlush(adminUser);
