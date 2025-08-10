@@ -214,7 +214,6 @@ async function cancelOrder(order: Order) {
     const user = await em.findOne(User, { id: order.user._id.toString() });
 
     if (user?.email) {
-      console.log('Sending order cancellation email to:', user.email);
       await mailService.sendOrderCancellationEmail(user.email, order.orderNumber);
     } else {
       console.warn('No email found for user:', order.user._id.toString());

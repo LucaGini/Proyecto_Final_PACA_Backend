@@ -30,7 +30,7 @@ async function findOne(req: Request, res: Response){
 
 async function add(req: Request, res: Response) {
   try {
-    const { name, description, price, stock, category, supplier } = req.body;
+    const { name, description, price, stock, minimumStock, category, supplier } = req.body;
     let imageUrl = '';
 
     // Cloudinary automáticamente sube la imagen y nos da la URL
@@ -49,6 +49,8 @@ async function add(req: Request, res: Response) {
       description,
       price: parseFloat(price),
       stock: parseInt(stock),
+      minimumStock: parseInt(minimumStock),
+      mailSent: false,
       image: imageUrl, // Ahora guardamos la URL completa de Cloudinary
       category,
       supplier
@@ -91,8 +93,16 @@ async function add(req: Request, res: Response) {
         req.body.image = (req.file as any).path;
       }
 
+      const newStock = Number(req.body.stock);
+      const minimumStock = Number(req.body.minimumStock);
+      if (!isNaN(newStock)) { 
+        if (newStock >= minimumStock) {
+          req.body.mailSent = false;
+        }
+      }
+
       em.assign(existingProduct, req.body);
-      await em.flush();
+      await em.flush();      
       res
         .status(200)
         .json({message: 'product updated', data: existingProduct});

@@ -19,7 +19,13 @@ export class Product extends BaseEntity {
     stock!: number
 
     @Property({nullable: false, unique: true})
+    minimumStock!: number
+
+    @Property({nullable: false, unique: true})
     image!: string
+
+    @Property({nullable: false, unique: true})
+    mailSent!: boolean
 
     @ManyToOne(() => Category, {nullable: false})
     category!: Rel<Category>
