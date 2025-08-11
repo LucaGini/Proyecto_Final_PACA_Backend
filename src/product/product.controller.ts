@@ -6,14 +6,24 @@ import { deleteFromCloudinary, extractPublicIdFromUrl } from '../shared/db/image
 const em = orm.em;
 
 
-async function findAll(req: Request, res: Response){
-  try{
-    const products = await em.find(Product, {});
-    res.status(200).json({message:'found all products',data: products});
-  } catch (error: any) {
-    res.status(404).json({message: error.message});
+export async function findAllActive(req: Request, res: Response) {
+  try {
+    const products = await em.find(Product, { isActive: true });
+    return res.status(200).json({ data: products });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error getting active products', error });
   }
-};
+}
+export async function findAll(req: Request, res: Response) {
+  try {
+    const products = await em.find(Product, {}); 
+    return res.status(200).json({ data: products });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error getting products', error });
+  }
+}
 
 async function findOne(req: Request, res: Response){
   try{
@@ -51,7 +61,8 @@ async function add(req: Request, res: Response) {
       stock: parseInt(stock),
       minimumStock: parseInt(minimumStock),
       mailSent: false,
-      image: imageUrl, // Ahora guardamos la URL completa de Cloudinary
+      image: imageUrl,
+      isActive: true,
       category,
       supplier
     });
@@ -101,6 +112,10 @@ async function add(req: Request, res: Response) {
         }
       }
 
+      if (req.body.isActive === false) {
+        return res.status(409).json({ message: 'Product cannot be updated because it is inactive' });
+      }
+
       em.assign(existingProduct, req.body);
       await em.flush();      
       res
@@ -112,21 +127,22 @@ async function add(req: Request, res: Response) {
     }
   };
   
- async function remove(req: Request, res: Response){
+ async function softDeleteProduct(req: Request, res: Response){
   try{
     const id = req.params.id;
     const product = await em.findOne(Product, { id });
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    if (product.image) {
-      const publicId = extractPublicIdFromUrl(product.image);
-      if (publicId) {
-        await deleteFromCloudinary(publicId);
-      }
-    }
+    // if (product.image) {
+    //   const publicId = extractPublicIdFromUrl(product.image);
+    //   if (publicId) {
+    //     await deleteFromCloudinary(publicId);
+    //   }
+    // }
 
-    await em.removeAndFlush(product);
+    product.isActive = false;
+    await em.persistAndFlush(product);
     res
       .status(200)
       .json({message: 'product deleted', data: product});
@@ -159,9 +175,7 @@ async function search(req: Request, res: Response) {
     }
 
     const searchQuery = String(query).toLowerCase();
-    const products = await em.find(Product, {}, { 
-      populate: ['category']
-    });
+    const products = await em.find(Product, { isActive: true }, { populate: ['category'] });
 
     const filteredProducts = products.filter(product => 
       product.name.toLowerCase().includes(searchQuery) || 
@@ -187,12 +201,17 @@ async function verifyStock(req: Request, res: Response) {
     if (!product) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
+
     if (Number(quantity) > product.stock) { // lo tuve que poner así al quantity pq si no no me dejaba aunque si lo paso como numero
       return res.status(400).json({
         message: 'Stock insuficiente para el articulo',
         productName: product.name,
         availableStock: product.stock,
       });
+    }
+
+    if(product.isActive === false){
+      return res.status(409).json({ message: 'Product is inactive, cannot verify stock' });
     }
 
     res.status(200).json({
@@ -203,14 +222,39 @@ async function verifyStock(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
+async function reactivateProduct(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const product = await em.findOne(Product, { id });
+    console.log("el producto es: ", product); 
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    if (product.isActive) {
+      return res.status(409).json({ message: 'Product is already active' });
+    }
+    console.log("el producto esta activo?", product.isActive);
+
+    product.isActive = true;
+    await em.flush();
+    console.log("el producto esta activo?", product.isActive);
+    return res.status(200).json({ message: 'Product reactivated successfully' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error', error });
+  }
+}
 
 export const controller = {  
+  findAllActive,
   findAll, 
   findOne,
   add,
   update,
-  remove,
+  softDeleteProduct,
   findProductByName,
   search,
-  verifyStock
+  verifyStock,
+  reactivateProduct
 };

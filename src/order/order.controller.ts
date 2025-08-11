@@ -86,6 +86,10 @@ async function create(req: Request, res: Response){
       orderItems.map(async (item: any) => { 
         const product = await em.findOneOrFail(Product, { id: item.productId });
         
+        if (!product.isActive) {
+          throw new Error(`El producto "${product.name}" no está activo y no puede ser comprado.`);
+        }
+        
         if (product.stock < item.quantity) { // con el verifyStock ya nos aceguramis de que no entre acá, quiza se pueda sacar 
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }

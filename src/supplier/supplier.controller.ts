@@ -138,6 +138,10 @@ async function requestRestock(req: Request, res: Response) {
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
+    if (product.isActive === false) {
+      return res.status(409).json({ message: 'Product is inactive, cannot request restock' });
+    }
+
     if (!supplier.email) {
       return res.status(400).json({ message: 'Supplier has no email address' });
     }

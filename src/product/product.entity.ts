@@ -26,6 +26,9 @@ export class Product extends BaseEntity {
 
     @Property({nullable: false, unique: true})
     mailSent!: boolean
+    
+    @Property({ nullable: false })
+    isActive: boolean = true;
 
     @ManyToOne(() => Category, {nullable: false})
     category!: Rel<Category>
