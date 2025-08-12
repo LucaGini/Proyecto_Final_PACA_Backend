@@ -85,6 +85,12 @@ async function create(req: Request, res: Response){
     const orderItemsWithProduct = await Promise.all( /// DESDE ACÁ HASTA EL CREATE, ES PARA LA ACTUALIZACIÓN DEL STOCK 
       orderItems.map(async (item: any) => { 
         const product = await em.findOneOrFail(Product, { id: item.productId });
+
+         if (!product.isActive) {
+          const error = new Error(`El producto "${product.name}" ya no se encuentra a la venta.`);
+          (error as any).statusCode = 409; // o algún código que uses para conflicto
+          throw error;
+        }
         
         if (product.stock < item.quantity) { // con el verifyStock ya nos aceguramis de que no entre acá, quiza se pueda sacar 
           throw new Error(`Insufficient stock for product: ${product.name}`);

@@ -5,6 +5,7 @@ import { authenticateAdmin } from "../auth/authMiddleware.js";
 export const categoryRouter = Router();
 
 categoryRouter.get('/:name/products', controller.findProductsByCategory);
+categoryRouter.get('/:name/products/active-products', controller.findActiveProductsByCategory);
 categoryRouter.get('/:name', authenticateAdmin, controller.findCategoryByName); 
 categoryRouter.get('/', controller.findAll);
 categoryRouter.get('/:id', controller.findOne);

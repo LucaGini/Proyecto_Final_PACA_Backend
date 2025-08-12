@@ -104,7 +104,7 @@ async function forceCancelOrder(order: Order) {
   await em.persistAndFlush(order);
 }
 
-export async function softDeleteUser(req: Request, res: Response) {
+export async function softDelete(req: Request, res: Response) {
   try {
     const id = req.params.id;
     const user = await em.findOne(User, { id });
@@ -217,7 +217,7 @@ async function updatePassword(req: Request, res: Response) {
     findAll, 
     findOne,
     update,
-    softDeleteUser,
+    softDelete,
     signUp,
     findUserByEmail,
     updatePassword
