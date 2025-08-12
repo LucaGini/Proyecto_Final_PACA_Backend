@@ -106,6 +106,23 @@ async function findProductsByCategory(req: Request, res: Response){
   }
 };
 
+async function findActiveProductsByCategory(req: Request, res: Response){
+  try{
+    const name = req.params.name;
+    const category = await em.findOneOrFail(Category, {name: name});
+    const products = await em.find(Product, {
+      category: category,
+      isActive: true, 
+    });
+    res
+      .status(200)
+      .json({message: 'found products by category', data: products});
+
+  }catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
+
 async function findCategoryByName(req: Request, res: Response) {
   try {
     const name = req.params.name;
@@ -128,5 +145,6 @@ async function findCategoryByName(req: Request, res: Response) {
     update,
     remove,
     findProductsByCategory,
+    findActiveProductsByCategory,
     findCategoryByName
   };

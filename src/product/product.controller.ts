@@ -15,6 +15,15 @@ async function findAll(req: Request, res: Response){
   }
 };
 
+async function findActive(req: Request, res: Response){
+  try{
+    const products = await em.find(Product,  { isActive: true });
+    res.status(200).json({message:'found all products',data: products});
+  } catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
+
 async function findOne(req: Request, res: Response){
   try{
   const id = req.params.id;
@@ -51,7 +60,8 @@ async function add(req: Request, res: Response) {
       stock: parseInt(stock),
       minimumStock: parseInt(minimumStock),
       mailSent: false,
-      image: imageUrl, // Ahora guardamos la URL completa de Cloudinary
+      image: imageUrl, 
+      isActive: true,
       category,
       supplier
     });
@@ -80,6 +90,7 @@ async function add(req: Request, res: Response) {
         }
       }
 
+      /// LO DE LA IMAGEN NO ESTÁ IMPLEMENTADO EN EL FRONT, PERO AQUÍ ESTÁ POR SI ACASO
       // Si se sube una nueva imagen, actualizar la URL
       if (req.file) {
         // Eliminar la imagen anterior de Cloudinary si existe
@@ -91,6 +102,11 @@ async function add(req: Request, res: Response) {
         }
         // Asignar la nueva URL de imagen
         req.body.image = (req.file as any).path;
+      }
+
+      console.log("est o no activo", req.body.isActive);
+      if(!req.body.isActive){
+        return res.status(409).json({ message: 'Error', error: 'Cannot updete an unactive product' });
       }
 
       const newStock = Number(req.body.stock);
@@ -112,7 +128,7 @@ async function add(req: Request, res: Response) {
     }
   };
   
- async function remove(req: Request, res: Response){
+ async function softDelete(req: Request, res: Response){
   try{
     const id = req.params.id;
     const product = await em.findOne(Product, { id });
@@ -126,7 +142,8 @@ async function add(req: Request, res: Response) {
       }
     }
 
-    await em.removeAndFlush(product);
+    product.isActive = false;
+    await em.persistAndFlush(product);
     res
       .status(200)
       .json({message: 'product deleted', data: product});
@@ -159,14 +176,11 @@ async function search(req: Request, res: Response) {
     }
 
     const searchQuery = String(query).toLowerCase();
-    const products = await em.find(Product, {}, { 
-      populate: ['category']
-    });
-
-    const filteredProducts = products.filter(product => 
-      product.name.toLowerCase().includes(searchQuery) || 
-      product.category.name.toLowerCase().includes(searchQuery)
-    );
+    const products = await em.find(Product, { isActive: true }, { populate: ['category'] });
+    const filteredProducts = products.filter(product => {
+      console.log("Producto activo:", product.isActive, "Nombre:", product.name);
+      return product.name.toLowerCase().includes(searchQuery) || product.category.name.toLowerCase().includes(searchQuery);
+});
 
     res.status(200).json({ 
       message: 'found products', 
@@ -204,13 +218,37 @@ async function verifyStock(req: Request, res: Response) {
   }
 }
 
+async function reactivateProduct(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const product = await em.findOne(Product, { id });
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    if (product.isActive) {
+      return res.status(409).json({ message: 'Product is already active' });
+    }
+
+    product.isActive = true;
+    await em.flush();
+    return res.status(200).json({ message: 'Product reactivated successfully' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error', error });
+  }
+}
+
+
 export const controller = {  
   findAll, 
+  findActive,
   findOne,
   add,
   update,
-  remove,
+  softDelete,
   findProductByName,
   search,
-  verifyStock
+  verifyStock,
+  reactivateProduct
 };
