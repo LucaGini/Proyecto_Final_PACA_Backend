@@ -5,6 +5,8 @@ import { authenticateAdmin } from "../auth/authMiddleware.js";
 
 export const productRouter = Router();
 
+
+productRouter.get('/active-products', controller.findActive);
 productRouter.get('/search', controller.search);
 productRouter.get('/:id', controller.findOne);
 productRouter.get('/product/:name', authenticateAdmin,controller.findProductByName);

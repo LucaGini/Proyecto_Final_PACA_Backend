@@ -15,6 +15,15 @@ async function findAll(req: Request, res: Response){
   }
 };
 
+async function findActive(req: Request, res: Response){
+  try{
+    const products = await em.find(Product,  { isActive: true });
+    res.status(200).json({message:'found all products',data: products});
+  } catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
+
 async function findOne(req: Request, res: Response){
   try{
   const id = req.params.id;
@@ -51,7 +60,8 @@ async function add(req: Request, res: Response) {
       stock: parseInt(stock),
       minimumStock: parseInt(minimumStock),
       mailSent: false,
-      image: imageUrl, // Ahora guardamos la URL completa de Cloudinary
+      image: imageUrl, 
+      isActive: true,
       category,
       supplier
     });
@@ -80,6 +90,7 @@ async function add(req: Request, res: Response) {
         }
       }
 
+      /// LO DE LA IMAGEN NO ESTÁ IMPLEMENTADO EN EL FRONT, PERO AQUÍ ESTÁ POR SI ACASO
       // Si se sube una nueva imagen, actualizar la URL
       if (req.file) {
         // Eliminar la imagen anterior de Cloudinary si existe
@@ -91,6 +102,11 @@ async function add(req: Request, res: Response) {
         }
         // Asignar la nueva URL de imagen
         req.body.image = (req.file as any).path;
+      }
+
+      console.log("est o no activo", req.body.isActive);
+      if(!req.body.isActive){
+        return res.status(409).json({ message: 'Error', error: 'Cannot updete an unactive product' });
       }
 
       const newStock = Number(req.body.stock);
@@ -126,7 +142,8 @@ async function add(req: Request, res: Response) {
       }
     }
 
-    await em.removeAndFlush(product);
+    product.isActive = false;
+    await em.persistAndFlush(product);
     res
       .status(200)
       .json({message: 'product deleted', data: product});
@@ -206,6 +223,7 @@ async function verifyStock(req: Request, res: Response) {
 
 export const controller = {  
   findAll, 
+  findActive,
   findOne,
   add,
   update,
