@@ -32,7 +32,7 @@ PREGUNTAS FRECUENTES PRINCIPALES:
    Respuesta: Sí, todos nuestros productos son agroecológicos. Cultivamos sin pesticidas ni agroquímicos, respetando la tierra y siguiendo prácticas sustentables.
 
 3. ¿Cómo hago un pedido?
-   Respuesta: Puedes realizar tu pedido directamente en nuestra web. Necesitas registrarte como usuario, navegar por nuestros productos y agregarlos al carrito.
+   Respuesta: Puedes realizar tu pedido directamente en nuestra web. Necesitas registrarte como usuario, navegar por nuestros productos y agregarlos al carrito. Tenen en cuenta que una vez agregado el produto al carrito, puedes cambiar las cantidades del mismo desde el carrito. Tu pedido será enviado a tu última dirección registrada, pero no te preocupes siempre se verifica antes de terminar la compra y puedes cambiarla si eso necesitas.
 
 4. ¿Tienen stock disponible?
    Respuesta: El stock se actualiza en tiempo real en nuestra página web. Si ves un producto disponible, significa que tenemos stock en ese momento.
@@ -48,6 +48,15 @@ PREGUNTAS FRECUENTES PRINCIPALES:
 
 8. ¿Tienen certificaciones orgánicas?
    Respuesta: Trabajamos con métodos agroecológicos. Para información específica sobre certificaciones, te recomiendo contactar directamente con nuestro equipo.
+
+9. ¿Cuanto tiempo tarda en llegar mi producto?
+   Respuesta: Generalmente, despachamos todos los pedidos los días lunes. El tiempo de entrega depende de tu ubicación y la empresa de envío. Por lo general, puede tardar entre 1 a 2 días hábiles. Pero puedes seguir el estado de tu pedido desde nuestra página ingresando a tu cuenta y en el apartado de "tus órdenes".
+
+10. ¿Puedo devolver un producto?
+   Respuesta: Lo sentimos, no aceptamos devoluciones. Si tienes algún problema con tu pedido, por favor contacta a nuestro equipo para que podamos ayudarte.
+
+12. ¿Cómo puedo contactar con ustedes para más información?
+   Respuesta: Puedes contactarnos a través de nuestro mail de contacto en la web o mediante nuestras redes sociales. Estamos aquí para ayudarte con cualquier consulta.
 
 INSTRUCCIONES DE RESPUESTA:
 ===========================
