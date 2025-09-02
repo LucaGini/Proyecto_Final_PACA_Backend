@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 import { orderRouter } from './order/order.routes.js';
 import dotenv from 'dotenv';
 import { createDefaultAdmin } from './user/admin.seed.js';
-import {dashboardRouter} from './bashboard/dashboard.routes.js';
+import {dashboardRouter} from './dashboard/dashboard.routes.js';
 
 dotenv.config();
 
