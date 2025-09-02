@@ -12,6 +12,7 @@ import { orm } from './shared/db/orm.js';
 import { RequestContext } from '@mikro-orm/core';
 import { productRouter } from './product/product.routes.js';
 import { authRouter } from './auth/auth.routes.js';
+import { chatbotRouter } from './chatbot/chatbot.routes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -48,8 +49,10 @@ app.use('/api/cities', cityRouter);
 app.use('/api/products', productRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/orders', orderRouter);
+app.use('/api/chatbot', chatbotRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/dashboard', dashboardRouter);
+
 
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
