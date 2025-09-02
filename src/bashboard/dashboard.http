@@ -1,0 +1,21 @@
+### Get sales by province
+GET http://localhost:3000/api/dashboard/sales-by-province
+
+### Get top 5 products
+GET http://localhost:3000/api/dashboard/top-products
+
+### Get top 5 customers
+GET http://localhost:3000/api/dashboard/top-customers
+
+### Get worst 5 customers
+GET http://localhost:3000/api/dashboard/worst-customers
+
+###  Get orders status
+GET http://localhost:3000/api/dashboard/orders-by-status
+
+
+### Get earinngs
+GET http://localhost:3000/api/dashboard/earnings-over-time
+
+
+
