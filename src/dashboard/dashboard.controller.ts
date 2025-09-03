@@ -11,14 +11,28 @@ const em = orm.em;
 function getDateRangeUTC(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return null;
 
-  const start = new Date(startDate);
-  start.setUTCHours(0, 0, 0, 0);
+  // Fechas locales
+  const startLocal = new Date(startDate);
+  startLocal.setHours(0, 0, 0, 0);
 
-  const end = new Date(endDate);
-  end.setUTCHours(23, 59, 59, 999);
+  const endLocal = new Date(endDate);
+  endLocal.setHours(23, 59, 59, 999);
 
-  return { $gte: start, $lte: end };
+  // Convertir a UTC restando el offset local
+  const startUTC = new Date(startLocal.getTime() - startLocal.getTimezoneOffset() * 60000);
+  const endUTC = new Date(endLocal.getTime() - endLocal.getTimezoneOffset() * 60000);
+
+  // Debug
+  console.log("=== Rango de Fechas ===");
+  console.log("Start local:", startLocal.toString());
+  console.log("End local:", endLocal.toString());
+  console.log("Start UTC :", startUTC.toISOString());
+  console.log("End UTC   :", endUTC.toISOString());
+
+  return { $gte: startUTC, $lte: endUTC };
 }
+
+
 
 // --- Filtros generales de órdenes ---
 function buildOrderFilters(req: Request, excludeCancelled: boolean = true, onlyStatus?: string) {
