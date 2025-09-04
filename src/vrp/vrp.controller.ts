@@ -6,38 +6,41 @@ import cron from 'node-cron';
 import { MailService } from '../auth/mail.service.js';
 
 const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
-
 const mailService = new MailService();
 
+// --- Helpers ---
 async function geocodeAddress(address: string) {
-  // El que va posta
-  if (OPENCAGE_API_KEY) {
-    try {
-      const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&language=es&countrycode=ar&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        const g = data.results[0].geometry;
-        return { lat: g.lat, lon: g.lng };
-      }
-    } catch (err) {
-      console.error("Error con OpenCage:", err);
-    }
-  }
-
-  // Si falla vamos con este, quiza lo podríamos sacar, hay que charlarlo 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'paca-route-service' } });
+    const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&language=es&countrycode=ar&limit=1`;
+    const res = await fetch(url);
     const data = await res.json();
-    if (data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-    }
-  } catch (err) {
-    console.error("Error con Nominatim:", err);
-  }
 
-  return null;
+    if (!data.results || data.results.length === 0) {
+      return null; // nada encontrado
+    }
+
+    const result = data.results[0];
+
+    // 🔎 Validaciones para evitar falsos positivos
+    const confidence = result.confidence ?? 0;
+    const components = result.components || {};
+
+    if (
+      confidence < 6 || // escala 1-10 (descartamos bajas confianzas)
+      !components.road || // no tiene calle
+      (!components.house_number && address.includes(" ")) // no tiene número
+    ) {
+      return null;
+    }
+
+    return {
+      lat: result.geometry.lat,
+      lon: result.geometry.lng
+    };
+  } catch (err) {
+    console.error("Error geocodificando dirección:", err);
+    return null;
+  }
 }
 
 function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
@@ -51,7 +54,6 @@ function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lo
             Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-
 
 function geneticOptimize(points: any[], depot: any, generations = 200, populationSize = 50) {
   if (points.length === 0) return [depot, depot];
@@ -112,11 +114,10 @@ function shuffle(arr: any[]) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
-
 function buildGoogleMapsLink(route: any[]) {
   if (route.length < 2) return null;
 
-  const uniqueRoute = route.filter((point, i, arr) => { // ESTO LO TUVE QUE AGREGAR PQ VARIAS ÓRDENES PUEDEN TENER EL LA MISMA
+  const uniqueRoute = route.filter((point, i, arr) => {
     if (i === 0) return true;
     return point.address !== arr[i - 1].address;
   });
@@ -233,11 +234,9 @@ async function generateWeeklyRoutes() {
 
   // Enviar mail con los links
   for (const [province, data] of Object.entries(routesByProvince)) {
-  await mailService.sendRoutesEmail(province, data.mapsLink);
+    await mailService.sendRoutesEmail(province, data.mapsLink);
+  }
 }
-
-}
-
 
 async function getLatestWeeklyRoutes(req: Request, res: Response) {
   console.log("getLatestWeeklyRoutes llamado");
@@ -259,7 +258,7 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
 }
 
 // ---------- CRON ----------
-// cron.schedule('32 21 * * 3', async () => {
+// cron.schedule('59 23 * * 0', async () => {
 //   console.log(" Ejecutando generación de rutas automáticamente...");
 //   try {
 //     await generateWeeklyRoutes();
