@@ -336,4 +336,35 @@ export class MailService {
 
   await this.transporter.sendMail(mailOptions);
 }
+
+
+async sendRoutesEmail(province: string, link: string) {
+  const mailOptions = {
+    from: process.env.MAIL_USER,
+    to: process.env.MAIL_USER, // acá ponemos el del tranportista(?)
+    subject: `📍 Nueva ruta generada - ${province}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+        <h2 style="color:#2c3e50;">Ruta generada para la provincia de ${province}</h2>
+        <p>
+          Se ha generado la ruta óptima para las órdenes de <strong>${province}</strong>.
+        </p>
+        <p>
+          Podés ver el recorrido completo en Google Maps haciendo clic en el siguiente botón:
+        </p>
+        <p style="text-align:center; margin: 20px 0;">
+          <a href="${link}" style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+             Ver ruta en Google Maps
+          </a>
+        </p>
+        <hr/>
+        <p style="font-size:12px; color:#7f8c8d; text-align:center;">
+          Este es un correo automático generado por el sistema de rutas.
+        </p>
+      </div>
+    `
+  };
+
+  await this.transporter.sendMail(mailOptions);
+}
 }

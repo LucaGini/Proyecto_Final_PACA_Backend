@@ -3,14 +3,14 @@ import { orm } from '../shared/db/orm.js';
 import { Order } from '../order/order.entity.js';
 import { Vrp } from './vrp.entity.js';
 import cron from 'node-cron';
-
+import { MailService } from '../auth/mail.service.js';
 
 const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
 
-
+const mailService = new MailService();
 
 async function geocodeAddress(address: string) {
-  // 1. Intentar con OpenCage
+  // El que va posta
   if (OPENCAGE_API_KEY) {
     try {
       const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&language=es&countrycode=ar&limit=1`;
@@ -25,8 +25,7 @@ async function geocodeAddress(address: string) {
     }
   }
 
-
-  //  Fallback a Nominatim
+  // Si falla vamos con este, quiza lo podríamos sacar, hay que charlarlo 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
     const res = await fetch(url, { headers: { 'User-Agent': 'paca-route-service' } });
@@ -38,10 +37,8 @@ async function geocodeAddress(address: string) {
     console.error("Error con Nominatim:", err);
   }
 
-
   return null;
 }
-
 
 function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const R = 6371; // km
@@ -50,20 +47,16 @@ function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lo
   const lat1 = a.lat * Math.PI / 180;
   const lat2 = b.lat * Math.PI / 180;
 
-
   const h = Math.sin(dLat / 2) ** 2 +
             Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
 
-// ---------- GENETIC ALGORITHM ----------
 function geneticOptimize(points: any[], depot: any, generations = 200, populationSize = 50) {
   if (points.length === 0) return [depot, depot];
 
-
   let population = Array.from({ length: populationSize }, () => shuffle([...points]));
-
 
   function fitness(route: any[]) {
     let dist = 0;
@@ -76,14 +69,11 @@ function geneticOptimize(points: any[], depot: any, generations = 200, populatio
     return 1 / dist;
   }
 
-
   for (let gen = 0; gen < generations; gen++) {
     const scored = population.map(route => ({ route, score: fitness(route) }));
     scored.sort((a, b) => b.score - a.score);
 
-
     const newPop = scored.slice(0, populationSize / 5).map(s => s.route);
-
 
     while (newPop.length < populationSize) {
       const [p1, p2] = [
@@ -95,15 +85,12 @@ function geneticOptimize(points: any[], depot: any, generations = 200, populatio
       newPop.push(child);
     }
 
-
     population = newPop;
   }
-
 
   const best = population.sort((a, b) => fitness(b) - fitness(a))[0];
   return [depot, ...best, depot];
 }
-
 
 function crossover(a: any[], b: any[]) {
   const start = Math.floor(Math.random() * a.length);
@@ -115,49 +102,62 @@ function crossover(a: any[], b: any[]) {
   return child;
 }
 
-
 function mutate(route: any[]) {
   const i = Math.floor(Math.random() * route.length);
   const j = Math.floor(Math.random() * route.length);
   [route[i], route[j]] = [route[j], route[i]];
 }
 
-
 function shuffle(arr: any[]) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
+
+function buildGoogleMapsLink(route: any[]) {
+  if (route.length < 2) return null;
+
+  const uniqueRoute = route.filter((point, i, arr) => { // ESTO LO TUVE QUE AGREGAR PQ VARIAS ÓRDENES PUEDEN TENER EL LA MISMA
+    if (i === 0) return true;
+    return point.address !== arr[i - 1].address;
+  });
+
+  const origin = encodeURIComponent(uniqueRoute[0].address);
+  const destination = encodeURIComponent(uniqueRoute[uniqueRoute.length - 1].address);
+
+  const waypoints = uniqueRoute
+    .slice(1, -1)
+    .map(p => encodeURIComponent(p.address))
+    .join("|");
+
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${
+    waypoints ? `&waypoints=${waypoints}` : ""
+  }`;
+}
 
 // ----
 async function generateWeeklyRoutes() {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-
   const orders = await orm.em.find(Order, {
     status: 'pending',
     orderDate: { $gte: oneWeekAgo }
   }, { populate: ['user.city.province'] });
 
-
   const locationsByProvince: Record<string, any[]> = {};
   const notGeolocated: any[] = [];
-
 
   for (const order of orders) {
     const user = order.user as any;
     const city = user?.city as any;
     const province = city?.province as any;
 
-
     const rawProvince = province?.name ?? 'Sin provincia';
     const provinceName = rawProvince.trim().toLowerCase();
-
 
     const fullAddress = [user?.street, user?.streetNumber, city?.name, rawProvince, 'Argentina']
       .filter(Boolean)
       .join(', ');
-
 
     if (!user?.street || !user?.streetNumber || !city?.name || !province?.name) {
       notGeolocated.push({
@@ -171,7 +171,6 @@ async function generateWeeklyRoutes() {
       });
       continue;
     }
-
 
     const coords = await geocodeAddress(fullAddress);
     if (!coords) {
@@ -187,7 +186,6 @@ async function generateWeeklyRoutes() {
       continue;
     }
 
-
     const location = {
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -198,13 +196,11 @@ async function generateWeeklyRoutes() {
       ...coords
     };
 
-
     if (!locationsByProvince[provinceName]) {
       locationsByProvince[provinceName] = [];
     }
     locationsByProvince[provinceName].push(location);
   }
-
 
   const depot = {
     lat: -32.9557,
@@ -212,12 +208,16 @@ async function generateWeeklyRoutes() {
     address: 'UTN FRRo, Av. Pellegrini 250, Rosario, Santa Fe'
   };
 
-
-  const routesByProvince: Record<string, any[]> = {};
+  const routesByProvince: Record<string, any> = {};
   for (const [provinceName, locations] of Object.entries(locationsByProvince)) {
-    routesByProvince[provinceName] = geneticOptimize(locations, depot);
-  }
+    const route = geneticOptimize(locations, depot);
+    const mapsLink = buildGoogleMapsLink(route);
 
+    routesByProvince[provinceName] = {
+      route,
+      mapsLink
+    };
+  }
 
   const result = {
     totalOrders: orders.length,
@@ -225,15 +225,17 @@ async function generateWeeklyRoutes() {
     notGeolocated
   };
 
-
   const weekly = orm.em.create(Vrp, {
     generatedAt: new Date(),
     data: JSON.stringify(result)
   });
   await orm.em.persistAndFlush(weekly);
 
+  // Enviar mail con los links
+  for (const [province, data] of Object.entries(routesByProvince)) {
+  await mailService.sendRoutesEmail(province, data.mapsLink);
+}
 
-  return result;
 }
 
 
@@ -245,11 +247,9 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
       limit: 1
     });
 
-
     if (!last || last.length === 0) {
       return res.status(404).json({ message: "No hay rutas generadas aún" });
     }
-
 
     res.status(200).json(JSON.parse(last[0].data));
   } catch (err: any) {
@@ -258,18 +258,16 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
   }
 }
 
-
 // ---------- CRON ----------
-// cron.schedule('59 23 * * 0', async () => {
+// cron.schedule('32 21 * * 3', async () => {
 //   console.log(" Ejecutando generación de rutas automáticamente...");
 //   try {
 //     await generateWeeklyRoutes();
-//     console.log("Rutas generadas correctamente");
+//     console.log("Rutas generadas correctamente y mail enviado");
 //   } catch (err) {
 //     console.error("Error al generar rutas:", err);
 //   }
 // });
-
 
 export const controller = {
   getLatestWeeklyRoutes
