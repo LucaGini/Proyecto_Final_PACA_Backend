@@ -28,7 +28,7 @@ export class MailService {
       html: `
         <h1>Reestablecer la contraseña</h1>
         <p>Has solicitado reestablecer tu contraseña. Haz clic en el botón de abajo para cambiarla:</p>
-        <a href="${frontendUrl}?token=${token}" style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">Cambiar/actualizar contraseña</a>
+        <a href="${frontendUrl}?token=${token}" style="background-color: #b38558; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">Cambiar/actualizar contraseña</a>
         <p>Si no has solicitado este cambio, puedes ignorar este correo.</p>
 
           <p style="font-size: 16px; line-height: 1.6; color: #555;">
@@ -353,7 +353,7 @@ async sendRoutesEmail(province: string, link: string) {
           Podés ver el recorrido completo en Google Maps haciendo clic en el siguiente botón:
         </p>
         <p style="text-align:center; margin: 20px 0;">
-          <a href="${link}" style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+          <a href="${link}" style="background-color: #b38558; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
              Ver ruta en Google Maps
           </a>
         </p>
@@ -367,4 +367,49 @@ async sendRoutesEmail(province: string, link: string) {
 
   await this.transporter.sendMail(mailOptions);
 }
+
+
+async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: string) {
+  const mailOptions = {
+    from: process.env.MAIL_USER,
+    to: to,
+    subject: 'Problema con tu dirección de entrega',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #C94C4C; text-align: center;">No pudimos encontrar tu dirección</h1>
+        
+        <p style="font-size: 16px; line-height: 1.6; color: #555;">
+          Hola ${firstName},
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #555;">
+          Intentamos generar la ruta para tu pedido <strong>#${orderNumber}</strong>, pero no pudimos ubicar tu dirección en el mapa.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #555;">
+          Por favor, ingresá a la página y actualizá tu dirección para que podamos entregarte sin problemas.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #555;">
+          La semana que viene volveremos a intentar generar la ruta automáticamente.
+        </p>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+          <a href="http://localhost:4200/UserRegistration" 
+             style="background-color: #b38558; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+             Actualizar dirección
+          </a>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #555; text-align: center;">
+          Gracias por tu comprensión,<br>
+          El equipo de PACA
+        </p>
+      </div>
+    `
+  };
+
+  await this.transporter.sendMail(mailOptions);
+}
+
 }

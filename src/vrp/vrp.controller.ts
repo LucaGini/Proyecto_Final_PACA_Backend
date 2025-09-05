@@ -116,24 +116,14 @@ function shuffle(arr: any[]) {
 
 function buildGoogleMapsLink(route: any[]) {
   if (route.length < 2) return null;
-
   const uniqueRoute = route.filter((point, i, arr) => {
     if (i === 0) return true;
     return point.address !== arr[i - 1].address;
   });
-
-  const origin = encodeURIComponent(uniqueRoute[0].address);
-  const destination = encodeURIComponent(uniqueRoute[uniqueRoute.length - 1].address);
-
-  const waypoints = uniqueRoute
-    .slice(1, -1)
-    .map(p => encodeURIComponent(p.address))
-    .join("|");
-
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${
-    waypoints ? `&waypoints=${waypoints}` : ""
-  }`;
+  const addresses = uniqueRoute.map(p => encodeURIComponent(p.address));
+  return `https://www.google.com/maps/dir/${addresses.join("/")}`;
 }
+
 
 // ----
 async function generateWeeklyRoutes() {
@@ -184,6 +174,13 @@ async function generateWeeklyRoutes() {
         firstName: user?.firstName,
         lastName: user?.lastName
       });
+      if (user?.email) {
+        await mailService.sendAddressNotFoundEmail(
+          user.email,
+          user.firstName,
+          order.orderNumber
+        );
+      }
       continue;
     }
 
@@ -206,7 +203,7 @@ async function generateWeeklyRoutes() {
   const depot = {
     lat: -32.9557,
     lon: -60.6489,
-    address: 'UTN FRRo, Av. Pellegrini 250, Rosario, Santa Fe'
+    address: 'UTN FRRo, Zeballos 1341, Rosario, Santa Fe'
   };
 
   const routesByProvince: Record<string, any> = {};
@@ -258,7 +255,7 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
 }
 
 // ---------- CRON ----------
-// cron.schedule('59 23 * * 0', async () => {
+// cron.schedule('55 20 * * 4', async () => {
 //   console.log(" Ejecutando generación de rutas automáticamente...");
 //   try {
 //     await generateWeeklyRoutes();
