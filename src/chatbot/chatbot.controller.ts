@@ -88,7 +88,8 @@ export const getInfo = async (req: Request, res: Response): Promise<void> => {
         'Consultas sobre la cooperativa',
         'Preguntas frecuentes',
         'Guía de pedidos',
-        'Información sobre sustentabilidad'
+        'Información sobre sustentabilidad',
+        'Consulta de stock en tiempo real'
       ],
       version: '1.0.0',
       timestamp: new Date().toISOString()
