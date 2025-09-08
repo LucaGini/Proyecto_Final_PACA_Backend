@@ -12,7 +12,6 @@ supplierRouter.get('/by-id/:id', controller.findOne);
 supplierRouter.get('/:cuit', authenticateAdmin,controller.findSupplierByCuit);
 supplierRouter.get('/:cuit/products', authenticateAdmin, controller.findProductsBySupplier);
 supplierRouter.get('/:cuit', authenticateAdmin,controller.findSupplierByCuit);
-supplierRouter.get('/by-id/:id', controller.findOne);
 supplierRouter.get('/', controller.findAll);
 supplierRouter.post('/', authenticateAdmin, controller.add); 
 supplierRouter.put('/:id', authenticateAdmin, controller.update);
