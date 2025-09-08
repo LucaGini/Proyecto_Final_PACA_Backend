@@ -20,6 +20,7 @@ import { orderRouter } from './order/order.routes.js';
 import dotenv from 'dotenv';
 import { createDefaultAdmin } from './user/admin.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
+import {dashboardRouter} from './dashboard/dashboard.routes.js';
 
 dotenv.config();
 
@@ -51,6 +52,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/chatbot', chatbotRouter);
 app.use('/api/vrp', vrpRouter);
+app.use('/api/orders', orderRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
