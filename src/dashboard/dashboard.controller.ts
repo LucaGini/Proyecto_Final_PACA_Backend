@@ -300,13 +300,40 @@ async function getTopCancelledCustomers(req: Request, res: Response) {
 
 async function getOrderStatusDistribution(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, false);
+    const { startDate, endDate } = req.query;
+    const dateRange = getDateRangeUTC(startDate as string, endDate as string);
+    if (!dateRange) {
+      return res.status(400).json({ message: 'Debe enviar startDate y endDate' });
+    }
 
-    const orders: Loaded<Order, 'user'>[] = await em.find(Order, filters);
+    const orders: Loaded<Order, 'user'>[] = await em.find(Order, {}); // traemos todas, filtramos manualmente
     const statusDistribution: Record<string, number> = {};
 
     for (const order of orders) {
-      statusDistribution[order.status] = (statusDistribution[order.status] || 0) + 1;
+      const orderDate = order.orderDate;
+      const updatedDate = order.updatedDate;
+
+      // ignorar órdenes fuera de rango completamente
+      if (!orderDate || orderDate > dateRange.$lte) continue;
+
+      // Caso 1: nunca fue actualizada o se actualizó después del rango
+      if (!updatedDate || updatedDate > dateRange.$lte) {
+        if (orderDate >= dateRange.$gte && orderDate <= dateRange.$lte) {
+          // solo contar si entró en el rango como pendiente
+          statusDistribution['pending'] = (statusDistribution['pending'] || 0) + 1;
+        }
+      }
+      // Caso 2: se actualizó dentro del rango
+      else if (updatedDate >= dateRange.$gte && updatedDate <= dateRange.$lte) {
+        // Durante parte del rango estuvo pendiente
+        statusDistribution['pending'] = (statusDistribution['pending'] || 0) + 1;
+        // Luego cambió a su estado actual
+        statusDistribution[order.status] = (statusDistribution[order.status] || 0) + 1;
+      }
+      // Caso 3: se actualizó antes del rango → ya entró al rango con el estado actual
+      else if (updatedDate < dateRange.$gte) {
+        statusDistribution[order.status] = (statusDistribution[order.status] || 0) + 1;
+      }
     }
 
     const result = Object.entries(statusDistribution).map(([status, total]) => ({ status, total }));
