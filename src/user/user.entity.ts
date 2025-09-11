@@ -11,8 +11,8 @@ export class User extends BaseEntity {
     @Property({nullable: false, unique: true})
     email!: string
 
-    @Property({nullable: false, unique: true})
-    password!: string 
+    @Property({nullable: true, unique: true})
+    password?: string 
 
     @Property({nullable: false, unique: true})
     privilege!: string
@@ -34,6 +34,9 @@ export class User extends BaseEntity {
 
     @ManyToOne(() => City, {nullable: true})
     city?: Rel<City>
+
+    @Property({ nullable: true, unique: true })
+    googleId?: string;
 
     @Property({nullable: true, unique: true})
     resetPasswordToken?: string
