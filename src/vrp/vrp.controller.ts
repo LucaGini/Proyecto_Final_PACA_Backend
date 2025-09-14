@@ -158,7 +158,8 @@ async function generateWeeklyRoutes() {
         address: fullAddress,
         total: order.total,
         firstName: user?.firstName,
-        lastName: user?.lastName
+        lastName: user?.lastName,
+        status: order.status
       });
       continue;
     }
@@ -255,15 +256,15 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
 }
 
 // ---------- CRON ----------
-// cron.schedule('55 20 * * 4', async () => {
-//   console.log(" Ejecutando generación de rutas automáticamente...");
-//   try {
-//     await generateWeeklyRoutes();
-//     console.log("Rutas generadas correctamente y mail enviado");
-//   } catch (err) {
-//     console.error("Error al generar rutas:", err);
-//   }
-// });
+cron.schedule('26 22 * * 6', async () => {
+  console.log(" Ejecutando generación de rutas automáticamente...");
+  try {
+    await generateWeeklyRoutes();
+    console.log("Rutas generadas correctamente y mail enviado");
+  } catch (err) {
+    console.error("Error al generar rutas:", err);
+  }
+});
 
 export const controller = {
   getLatestWeeklyRoutes

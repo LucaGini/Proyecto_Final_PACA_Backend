@@ -307,6 +307,37 @@ async function findByOrderNumber(req: Request, res: Response) {
   }
 }
 
+async function bulkUpdateStatus(req: Request, res: Response) {
+  try {
+    const { orderIds, status } = req.body;
+
+    if (!Array.isArray(orderIds) || !status) {
+      return res.status(400).json({ message: 'orderIds array and status are required' });
+    }
+
+    const orders = await em.find(Order, { id: { $in: orderIds } });
+
+    if (!orders.length) {
+      return res.status(404).json({ message: 'No orders found for given IDs' });
+    }
+
+    for (const order of orders) {
+      order.status = status;
+      order.updatedDate = new Date();
+    }
+
+    await em.persistAndFlush(orders);
+
+    res.status(200).json({
+      message: `Orders updated to status "${status}" successfully`,
+      data: orders
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 export const controller = {
   findAll,
   findOne,
@@ -314,5 +345,6 @@ export const controller = {
   update,
   remove,
   findOrdersByEmail,
-  findByOrderNumber
+  findByOrderNumber,
+  bulkUpdateStatus
 }

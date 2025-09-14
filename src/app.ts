@@ -52,7 +52,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/chatbot', chatbotRouter);
 app.use('/api/vrp', vrpRouter);
-app.use('/api/orders', orderRouter);
 app.use('/api/dashboard', dashboardRouter);
 
 const __filename = fileURLToPath(import.meta.url); 
