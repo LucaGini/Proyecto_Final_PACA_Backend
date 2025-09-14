@@ -4,6 +4,7 @@ import { Order } from '../order/order.entity.js';
 import { Vrp } from './vrp.entity.js';
 import cron from 'node-cron';
 import { MailService } from '../auth/mail.service.js';
+import { rescheduledOrder, inDistributionOrder } from '../order/order.controller.js';
 
 const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
 const mailService = new MailService();
@@ -16,19 +17,17 @@ async function geocodeAddress(address: string) {
     const data = await res.json();
 
     if (!data.results || data.results.length === 0) {
-      return null; // nada encontrado
+      return null;
     }
 
     const result = data.results[0];
-
-    // Validaciones para evitar falsos positivos
     const confidence = result.confidence ?? 0;
     const components = result.components || {};
 
     if (
-      confidence < 6 || // escala 1-10 (descartamos bajas confianzas)
-      !components.road || // no tiene calle
-      (!components.house_number && address.includes(" ")) // no tiene número
+      confidence < 6 ||
+      !components.road ||
+      (!components.house_number && address.includes(" "))
     ) {
       return null;
     }
@@ -44,7 +43,7 @@ async function geocodeAddress(address: string) {
 }
 
 function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
-  const R = 6371; // km
+  const R = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
   const dLon = (b.lon - a.lon) * Math.PI / 180;
   const lat1 = a.lat * Math.PI / 180;
@@ -124,7 +123,6 @@ function buildGoogleMapsLink(route: any[]) {
   return `https://www.google.com/maps/dir/${addresses.join("/")}`;
 }
 
-
 // ----
 async function generateWeeklyRoutes() {
   const oneWeekAgo = new Date();
@@ -162,8 +160,7 @@ async function generateWeeklyRoutes() {
         firstName: user?.firstName,
         lastName: user?.lastName,
       });
-      order.status = 'rescheduled';
-      order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
+      await rescheduledOrder(order);
       continue;
     }
 
@@ -178,22 +175,11 @@ async function generateWeeklyRoutes() {
         firstName: user?.firstName,
         lastName: user?.lastName,  
       });
-
-      order.status = 'rescheduled';
-      order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
-
-      if (user?.email) {
-        await mailService.sendAddressNotFoundEmail(
-          user.email,
-          user.firstName,
-          order.orderNumber,
-          order.rescheduleQuantity
-        );
-      }
+      await rescheduledOrder(order);
       continue;
     }
-    
-    order.status = 'in distribution';
+
+    await inDistributionOrder(order);
 
     const location = {
       orderId: order.id,
@@ -268,8 +254,8 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
   }
 }
 
-// ---------- CRON ----------
-// cron.schedule('23 00 * * 0', async () => {
+//---------- CRON ----------
+// cron.schedule('13 12 * * 0', async () => {
 //   console.log(" Ejecutando generación de rutas automáticamente...");
 //   try {
 //     await generateWeeklyRoutes();

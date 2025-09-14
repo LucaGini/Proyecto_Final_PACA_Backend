@@ -385,7 +385,7 @@ export class MailService {
 
 
 async sendRoutesEmail(province: string, link: string) {
-  const appLink = "https://localhost:4200/vrp-list"; // <-- link a tu componente
+  const appLink = "http://localhost:4200/vrp-list"; 
   
   const mailOptions = {
     from: process.env.MAIL_USER,
@@ -467,5 +467,42 @@ async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: strin
 }
 
 
+async sendOrderInDistributionEmail(to: string, orderNumber: string) {
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: to,
+      subject: '¡Tu orden ha sido enviada!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333; text-align: center;">¡Tu orden ha sido enviada exitosamente!</h1>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            ¡Excelentes noticias!
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            La orden número <strong>#${orderNumber}</strong> ha sido procesada y enviada.
+          </p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic; color: #666; text-align: center;">
+              "Gracias por confiar en PACA. ¡Esperamos que resivas tu compra!"
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555; text-align: center;">
+            <strong>¡Gracias por elegirnos!</strong><br>
+            El equipo de PACA
+          </p>
+        </div>
+      `
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
 
 }
