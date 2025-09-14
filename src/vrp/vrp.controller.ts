@@ -21,7 +21,7 @@ async function geocodeAddress(address: string) {
 
     const result = data.results[0];
 
-    // 🔎 Validaciones para evitar falsos positivos
+    // Validaciones para evitar falsos positivos
     const confidence = result.confidence ?? 0;
     const components = result.components || {};
 
@@ -131,8 +131,10 @@ async function generateWeeklyRoutes() {
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
   const orders = await orm.em.find(Order, {
-    status: 'pending',
-    orderDate: { $gte: oneWeekAgo }
+    $or: [
+      { status: 'pending', orderDate: { $gte: oneWeekAgo } },
+      { status: 'rescheduled' }
+    ]
   }, { populate: ['user.city.province'] });
 
   const locationsByProvince: Record<string, any[]> = {};
@@ -159,8 +161,9 @@ async function generateWeeklyRoutes() {
         total: order.total,
         firstName: user?.firstName,
         lastName: user?.lastName,
-        status: order.status
       });
+      order.status = 'rescheduled';
+      order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
       continue;
     }
 
@@ -173,17 +176,24 @@ async function generateWeeklyRoutes() {
         address: fullAddress,
         total: order.total,
         firstName: user?.firstName,
-        lastName: user?.lastName
+        lastName: user?.lastName,  
       });
+
+      order.status = 'rescheduled';
+      order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
+
       if (user?.email) {
         await mailService.sendAddressNotFoundEmail(
           user.email,
           user.firstName,
-          order.orderNumber
+          order.orderNumber,
+          order.rescheduleQuantity
         );
       }
       continue;
     }
+    
+    order.status = 'in distribution';
 
     const location = {
       orderId: order.id,
@@ -192,6 +202,7 @@ async function generateWeeklyRoutes() {
       firstName: user?.firstName,
       lastName: user?.lastName,
       address: fullAddress,
+      status: order.status,
       ...coords
     };
 
@@ -200,6 +211,8 @@ async function generateWeeklyRoutes() {
     }
     locationsByProvince[provinceName].push(location);
   }
+
+  await orm.em.persistAndFlush(orders);
 
   const depot = {
     lat: -32.9557,
@@ -256,7 +269,7 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
 }
 
 // ---------- CRON ----------
-cron.schedule('26 22 * * 6', async () => {
+cron.schedule('20 23 * * 6', async () => {
   console.log(" Ejecutando generación de rutas automáticamente...");
   try {
     await generateWeeklyRoutes();

@@ -26,6 +26,9 @@ export class Order extends BaseEntity {
     @Property({ nullable: true, onUpdate: () => new Date() })
     updatedDate?: Date;
 
+    @Property({ nullable: false, default: '0' })
+    rescheduleQuantity!: number;
+
     @ManyToOne(() => User, { nullable: false })
     user!: Rel<User>;
 

@@ -113,6 +113,7 @@ async function create(req: Request, res: Response){
       user,
       orderItems: orderItemsWithProduct,
       total,
+      rescheduleQuantity: 0
     });
 
     await em.persistAndFlush(order);
@@ -177,6 +178,13 @@ async function update(req: Request, res: Response) {
       }
     }
 
+    if (status === 'rescheduled') {
+      const rescheduledResult = await rescheduledOrder(order);
+      if (!rescheduledResult.success) {
+        return res.status(400).json({ message: rescheduledResult.message });
+      }
+    }
+
     if (status) order.status = status;
 
     if (orderItems) {
@@ -237,7 +245,6 @@ async function completeOrder(order: Order) {
       const user = await em.findOne(User, { id: order.user._id.toString() });
 
       if (user?.email) {
-        console.log('Sending order completion email to:', user.email);
         await mailService.sendOrderCompletionEmail(user.email, order.orderNumber);
       } else {
         console.warn('No email found for user:', order.user._id.toString());
@@ -252,6 +259,37 @@ async function completeOrder(order: Order) {
     return { success: false, message: 'Error al enviar correo de completado' };
   }
 }
+
+
+async function rescheduledOrder(order: Order) {
+  try {
+    order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
+
+    if (order.rescheduleQuantity >= 2) {
+      order.status = 'cancelled';
+      await cancelOrder(order); 
+    } else {
+      order.status = 'rescheduled';
+
+      if (order.user && order.user._id) {
+        const user = await em.findOne(User, { id: order.user._id.toString() });
+        if (user?.email) {
+          await mailService.sendOrderRescheduleEmail(user.email, order.orderNumber, order.rescheduleQuantity);
+        } else {
+          console.warn('No email found for user:', order.user._id.toString());
+        }
+      }
+    }
+
+    await em.persistAndFlush(order);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in rescheduledOrder:', error);
+    return { success: false, message: 'Error al procesar reschedule' };
+  }
+}
+
 
 async function remove(req: Request, res: Response){
   try{
@@ -323,9 +361,16 @@ async function bulkUpdateStatus(req: Request, res: Response) {
 
     for (const order of orders) {
       order.status = status;
+      console.log(`Updating order ${order.id} to status ${status}`);
       order.updatedDate = new Date();
-    }
 
+      if (status === 'rescheduled') {
+        const rescheduledResult = await rescheduledOrder(order);
+        if (!rescheduledResult.success) {
+          return res.status(400).json({ message: rescheduledResult.message });
+        }
+      }
+    }
     await em.persistAndFlush(orders);
 
     res.status(200).json({

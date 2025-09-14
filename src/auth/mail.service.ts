@@ -80,6 +80,52 @@ export class MailService {
     await this.transporter.sendMail(mailOptions);
   }
 
+  async sendOrderRescheduleEmail(to: string, orderNumber: string, rescheduleQuantity:Number) {
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: to,
+      subject: '¡Tu orden ha sido reprogramada!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333; text-align: center;">¡Tu orden ha sido reprogramada!</h1>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            ¡Malas noticias!
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            La orden número <strong>#${orderNumber}</strong> ha sido procesada y enviada, pero no pudimos entregarla.
+          </p>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            No te procupes, ya la hemos reprogramado para que puedas recibirla pronto, la semana que viene intentaremos nuevamente.
+          </p>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Pero recuerda que solo podemos reprogramar una orden dos veces. Este ha sido nuestro <strong>#${rescheduleQuantity}</strong> intento de entrega.
+          </p>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic; color: #666; text-align: center;">
+              "Gracias por confiar en PACA. ¡Esperamos poder entregar tu pedido la próxima!"
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #555; text-align: center;">
+            <strong>¡Gracias por elegirnos!</strong><br>
+            El equipo de PACA
+          </p>
+        </div>
+      `
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
   async sendOrderCompletionEmail(to: string, orderNumber: string) {
     const mailOptions = {
       from: process.env.MAIL_USER,
@@ -369,7 +415,7 @@ async sendRoutesEmail(province: string, link: string) {
 }
 
 
-async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: string) {
+async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: string, rescheduleQuantity: number) {
   const mailOptions = {
     from: process.env.MAIL_USER,
     to: to,
@@ -391,7 +437,7 @@ async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: strin
         </p>
 
         <p style="font-size: 16px; line-height: 1.6; color: #555;">
-          La semana que viene volveremos a intentar generar la ruta automáticamente.
+          La semana siguiente intentaremos nuevamente enviar tu pedido, pero ten en cuenta que esta es la <strong>#${rescheduleQuantity}</strong>, vez que intenamos. A partir de la segunda vez, lamentablemente, no podremos reprogramar tu orden y será cancelada.
         </p>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
@@ -411,5 +457,7 @@ async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: strin
 
   await this.transporter.sendMail(mailOptions);
 }
+
+
 
 }
