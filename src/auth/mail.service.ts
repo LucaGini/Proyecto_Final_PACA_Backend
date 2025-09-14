@@ -385,6 +385,8 @@ export class MailService {
 
 
 async sendRoutesEmail(province: string, link: string) {
+  const appLink = "https://localhost:4200/vrp-list"; // <-- link a tu componente
+  
   const mailOptions = {
     from: process.env.MAIL_USER,
     to: process.env.MAIL_USER, // acá ponemos el del tranportista(?)
@@ -404,9 +406,15 @@ async sendRoutesEmail(province: string, link: string) {
           </a>
         </p>
         <hr/>
-        <p style="font-size:12px; color:#7f8c8d; text-align:center;">
-          Este es un correo automático generado por el sistema de rutas.
+        <p>
+          También podés gestionar las órdenes directamente desde la aplicación haciendo clic en el botón de abajo: 
         </p>
+        <p style="text-align:center; margin: 20px 0;">
+          <a href="${appLink}" style="background-color: #6b8e23; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+            Ver órdenes en la app
+          </a>
+        </p>
+
       </div>
     `
   };
@@ -437,7 +445,7 @@ async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: strin
         </p>
 
         <p style="font-size: 16px; line-height: 1.6; color: #555;">
-          La semana siguiente intentaremos nuevamente enviar tu pedido, pero ten en cuenta que esta es la <strong>#${rescheduleQuantity}</strong>, vez que intenamos. A partir de la segunda vez, lamentablemente, no podremos reprogramar tu orden y será cancelada.
+          La semana siguiente intentaremos nuevamente enviar tu pedido, pero ten en cuenta que esta es la <strong>${rescheduleQuantity}</strong>, vez que intenamos. A partir de la segunda vez, lamentablemente, no podremos reprogramar tu orden y será cancelada.
         </p>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">

@@ -264,9 +264,11 @@ async function completeOrder(order: Order) {
 async function rescheduledOrder(order: Order) {
   try {
     order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
+    console.log(`Order ${order.orderNumber} reschedule count: ${order.rescheduleQuantity}`);
 
     if (order.rescheduleQuantity >= 2) {
       order.status = 'cancelled';
+      console.log('Order reschedule limit reached, cancelling order:', order.orderNumber);
       await cancelOrder(order); 
     } else {
       order.status = 'rescheduled';
