@@ -263,12 +263,17 @@ async function completeOrder(order: Order) {
 
 async function rescheduledOrder(order: Order) {
   try {
+    console.log(`Rescheduling order ${order.id}, current reschedule count: ${order.rescheduleQuantity}`);
     order.updatedDate = new Date();
     order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
-    if (order.rescheduleQuantity >= 2) {
+    if (order.rescheduleQuantity > 2) {
+      console.log("se cancela")
       return await cancelOrder(order);
     } else {
+      console.log("se reenvia")
       order.status = 'rescheduled';
+      console.log(`Order ${order.id} rescheduled, new reschedule count: ${order.rescheduleQuantity}`);
+      console.log('Order after update:', order.status);
       if (order.user && order.user._id) {
         const user = await em.findOne(User, { id: order.user._id.toString() });
         if (user?.email) {

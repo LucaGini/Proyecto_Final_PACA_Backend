@@ -255,7 +255,7 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
 }
 
 //---------- CRON ----------
-// cron.schedule('13 12 * * 0', async () => {
+// cron.schedule('51 17 * * 0', async () => {
 //   console.log(" Ejecutando generación de rutas automáticamente...");
 //   try {
 //     await generateWeeklyRoutes();
