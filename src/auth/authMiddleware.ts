@@ -11,18 +11,28 @@ interface AuthenticatedRequest extends Request {
 }
 
 // LOGUEADOS O ADMINISTRADORO O CLIENTE
-function authenticateRole(role: 'administrador' | 'cliente') {
+function authenticateRole(...roles: ('administrador' | 'cliente' | 'transportista')[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'No se ha proporcionado un token' });
+    if (!authHeader) {
+      return res.status(401).json({ message: 'No se ha proporcionado un token' });
+    }
 
     const token = authHeader.split(' ')[1];
 
     try {
       const decoded: any = jwt.verify(token, SECRET_KEY);
-      if (!decoded || decoded.privilege !== role) {
-        return res.status(403).json({ message: `Requiere acceso de ${role}` });
+      if (!decoded || !roles.includes(decoded.privilege)) {
+        return res.status(403).json({ message: `Requiere acceso de: ${roles.join(' o ')}` });
       }
+
+      if (decoded.privilege === 'transportista') {
+        const today = new Date().getDay();
+        if (today !== 1) { // dejar en 1 = lunes
+          return res.status(403).json({ message: 'Los transportistas solo pueden acceder los lunes' });
+        }
+      }
+      
       req.user = decoded;
       next();
     } catch (error) {
@@ -33,15 +43,17 @@ function authenticateRole(role: 'administrador' | 'cliente') {
 
 export const authenticateAdmin = authenticateRole('administrador');
 export const authenticateClient = authenticateRole('cliente');
+export const authenticateDriver = authenticateRole('transportista');
+export const authenticateRoles = authenticateRole;
 
 //TODOS MENOS ADMINISTRADORES
-export function blockAdminIfLogged(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export function blockRoleIfLogged(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return next();
   const token = authHeader.split(' ')[1];
   try {
     const decoded: any = jwt.verify(token, SECRET_KEY);
-    if (decoded.privilege === 'administrador') {
+    if (decoded.privilege === 'administrador' || decoded.privilege === 'transportista') {
       return res.status(403).json({ message: 'Acceso denegado para administradores' });
     }
     req.user = decoded;
