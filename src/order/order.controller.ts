@@ -413,17 +413,10 @@ async function bulkUpdateStatus(req: Request, res: Response) {
 async function findInDistribution(req: Request, res: Response) {
   try {
     const orders = await em.find(Order, { status: 'in distribution' }, {
-      populate: ['user.city'],
-      fields: [
-        '*',
-        'user.id',
-        'user.firstName',
-        'user.lastName',
-        'user.street',
-        'user.streetNumber',
-        'user.city',
-        'user.city.name'
-      ]
+  populate: [
+    'user',
+    'user.city',
+    'user.city.province'],
     });
 
     res.status(200).json({
