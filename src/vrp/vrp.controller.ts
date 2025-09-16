@@ -125,12 +125,9 @@ function buildGoogleMapsLink(route: any[]) {
 
 // ----
 async function generateWeeklyRoutes() {
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
   const orders = await orm.em.find(Order, {
     $or: [
-      { status: 'pending', orderDate: { $gte: oneWeekAgo } },
+      { status: 'pending'},
       { status: 'rescheduled' }
     ]
   }, { populate: ['user.city.province'] });
