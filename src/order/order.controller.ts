@@ -410,6 +410,32 @@ async function bulkUpdateStatus(req: Request, res: Response) {
   }
 }
 
+async function findInDistribution(req: Request, res: Response) {
+  try {
+    const orders = await em.find(Order, { status: 'in distribution' }, {
+      populate: ['user.city'],
+      fields: [
+        '*',
+        'user.id',
+        'user.firstName',
+        'user.lastName',
+        'user.street',
+        'user.streetNumber',
+        'user.city',
+        'user.city.name'
+      ]
+    });
+
+    res.status(200).json({
+      message: 'Orders in distribution found successfully',
+      data: orders
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 export {
   rescheduledOrder,
   inDistributionOrder
@@ -423,5 +449,6 @@ export const controller = {
   remove,
   findOrdersByEmail,
   findByOrderNumber,
-  bulkUpdateStatus
+  bulkUpdateStatus,
+  findInDistribution
 }
