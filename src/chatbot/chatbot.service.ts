@@ -1,7 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PACA_KNOWLEDGE_BASE, FALLBACK_RESPONSES } from './faq.data.js';
-import { orm } from '../shared/db/orm.js';
-import { Product } from '../product/product.entity.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -146,22 +144,19 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
   }
 
   /**
-   * Maneja las consultas de stock de forma segura
-   * SOLO accede al nombre y stock de productos activos
+   * Maneja las consultas de stock usando la API interna segura
    */
   private async handleStockQuery(message: string): Promise<string> {
     try {
-      const em = orm.em.fork(); // Fork para manejo seguro de la transacción
-      
       // Extraer nombre del producto de la consulta (si se especifica)
       const productName = this.extractProductName(message);
       
       if (productName) {
         // Consulta específica de un producto
-        return await this.getSpecificProductStock(em, productName);
+        return await this.getSpecificProductStockSafe(productName);
       } else {
         // Consulta general de stock
-        return await this.getAllProductsStock(em);
+        return await this.getAllProductsStockSafe();
       }
       
     } catch (error) {
@@ -195,35 +190,43 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
   }
 
   /**
-   * Obtiene el stock de un producto específico
-   * SEGURIDAD: Solo accede a name y stock
+   * Obtiene el stock de un producto específico usando la API interna
    */
-  private async getSpecificProductStock(em: any, productName: string): Promise<string> {
+  private async getSpecificProductStockSafe(productName: string): Promise<string> {
     try {
-      // Búsqueda segura: usando find con filtros específicos
-      const products = await em.find(Product, {
-        isActive: true,
-        name: { $re: new RegExp(productName, 'i') }
-      }, {
-        fields: ['name', 'stock'] // Solo seleccionar campos seguros
+      // Llamar a la API interna en lugar de acceso directo a la DB
+      const response = await fetch(`http://localhost:3000/api/chatbot-internal/search?q=${encodeURIComponent(productName)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatbotService/1.0'
+        }
       });
 
-      if (products.length === 0) {
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.data.products || data.data.products.length === 0) {
         return `No encontré productos que coincidan con "${productName}". ¿Podrías verificar el nombre o consultar nuestro catálogo completo?`;
       }
 
+      const products = data.data.products;
+
       if (products.length === 1) {
         const product = products[0];
-        return `📦 **${product.name}**\n🔢 Stock disponible: ${product.stock} unidades\n\n${product.stock > 0 ? '✅ ¡Disponible para pedidos!' : '⚠️ Actualmente sin stock disponible'}`;
+        return `📦 **${product.name}**\n🔢 Stock disponible: ${product.stock} unidades\n\n${product.isAvailable ? '✅ ¡Disponible para pedidos!' : '⚠️ Actualmente sin stock disponible'}`;
       }
 
       // Múltiples productos encontrados
-      let response = `Encontré varios productos relacionados con "${productName}":\n\n`;
+      let response_text = `Encontré varios productos relacionados con "${productName}":\n\n`;
       products.forEach((product: any, index: number) => {
-        response += `${index + 1}. **${product.name}** - Stock: ${product.stock} unidades\n`;
+        response_text += `${index + 1}. **${product.name}** - Stock: ${product.stock} unidades\n`;
       });
       
-      return response;
+      return response_text;
 
     } catch (error) {
       console.error('Error getting specific product stock:', error);
@@ -232,33 +235,40 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
   }
 
   /**
-   * Obtiene el stock de todos los productos activos
-   * SEGURIDAD: Solo accede a name y stock
+   * Obtiene el stock de todos los productos activos usando la API interna
    */
-  private async getAllProductsStock(em: any): Promise<string> {
+  private async getAllProductsStockSafe(): Promise<string> {
     try {
-      // Consulta segura: usando find con campos específicos
-      const products = await em.find(Product, {
-        isActive: true
-      }, {
-        fields: ['name', 'stock'], // Solo seleccionar campos seguros
-        orderBy: { name: 'ASC' }
+      // Llamar a la API interna en lugar de acceso directo a la DB
+      const response = await fetch('http://localhost:3000/api/chatbot-internal/stock', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatbotService/1.0'
+        }
       });
 
-      if (products.length === 0) {
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.data.products || data.data.products.length === 0) {
         return "Actualmente no tenemos productos disponibles en nuestro catálogo.";
       }
 
-      let response = "📋 **Stock actual de nuestros productos PACA:**\n\n";
+      const products = data.data.products;
+      let response_text = "📋 **Stock actual de nuestros productos PACA:**\n\n";
       
       products.forEach((product: any, index: number) => {
-        const status = product.stock > 0 ? '✅' : '❌';
-        response += `${status} **${product.name}**: ${product.stock} unidades\n`;
+        const status = product.isAvailable ? '✅' : '❌';
+        response_text += `${status} **${product.name}**: ${product.stock} unidades\n`;
       });
 
-      response += "\n💡 *Si necesitas más información sobre algún producto específico, solo mencionalo por nombre.*";
+      response_text += "\n💡 *Si necesitas más información sobre algún producto específico, solo mencionalo por nombre.*";
       
-      return response;
+      return response_text;
 
     } catch (error) {
       console.error('Error getting all products stock:', error);

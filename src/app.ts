@@ -13,6 +13,7 @@ import { RequestContext } from '@mikro-orm/core';
 import { productRouter } from './product/product.routes.js';
 import { authRouter } from './auth/auth.routes.js';
 import { chatbotRouter } from './chatbot/chatbot.routes.js';
+import { chatbotInternalRouter } from './chatbot/internal/chatbot-internal.routes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -50,7 +51,7 @@ app.use('/api/products', productRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/chatbot', chatbotRouter);
-app.use('/api/orders', orderRouter);
+app.use('/api/chatbot-internal', chatbotInternalRouter); // Nueva API interna segura
 app.use('/api/dashboard', dashboardRouter);
 
 
