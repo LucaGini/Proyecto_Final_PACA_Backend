@@ -25,13 +25,6 @@ function authenticateRole(...roles: ('administrador' | 'cliente' | 'transportist
       if (!decoded || !roles.includes(decoded.privilege)) {
         return res.status(403).json({ message: `Requiere acceso de: ${roles.join(' o ')}` });
       }
-
-      if (decoded.privilege === 'transportista') {
-        const today = new Date().getDay();
-        if (today !== 1) { // dejar en 1 = lunes
-          return res.status(403).json({ message: 'Los transportistas solo pueden acceder los lunes' });
-        }
-      }
       
       req.user = decoded;
       next();
