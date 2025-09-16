@@ -10,8 +10,8 @@ interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
-// LOGUEADOS O ADMINISTRADORO O CLIENTE
-function authenticateRole(...roles: ('administrador' | 'cliente' | 'transportista')[]) {
+// LOGUEADOS O ADMINISTRADORO O CLIENTE O TRANSPORTISTA
+function authenticateRole(role: 'administrador' | 'cliente' | 'transportista') {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -22,10 +22,10 @@ function authenticateRole(...roles: ('administrador' | 'cliente' | 'transportist
 
     try {
       const decoded: any = jwt.verify(token, SECRET_KEY);
-      if (!decoded || !roles.includes(decoded.privilege)) {
-        return res.status(403).json({ message: `Requiere acceso de: ${roles.join(' o ')}` });
+      if (!decoded || decoded.privilege !== role) {
+        return res.status(403).json({ message: `Requiere acceso de: ${role}` });
       }
-      
+
       req.user = decoded;
       next();
     } catch (error) {
@@ -37,7 +37,7 @@ function authenticateRole(...roles: ('administrador' | 'cliente' | 'transportist
 export const authenticateAdmin = authenticateRole('administrador');
 export const authenticateClient = authenticateRole('cliente');
 export const authenticateDriver = authenticateRole('transportista');
-export const authenticateRoles = authenticateRole;
+
 
 //TODOS MENOS ADMINISTRADORES
 export function blockRoleIfLogged(req: AuthenticatedRequest, res: Response, next: NextFunction) {
