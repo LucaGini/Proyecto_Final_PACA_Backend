@@ -113,6 +113,7 @@ async function create(req: Request, res: Response){
       user,
       orderItems: orderItemsWithProduct,
       total,
+      rescheduleQuantity: 0
     });
 
     await em.persistAndFlush(order);
@@ -162,6 +163,12 @@ async function update(req: Request, res: Response) {
     const order = await em.findOneOrFail(Order, { id: req.params.id });
 
     const { status, orderItems } = req.body;
+    if (status === 'in distribution') {
+      const cancelResult = await inDistributionOrder(order);
+      if (!cancelResult.success) {
+        return res.status(400).json({ message: cancelResult.message });
+      }
+    }
 
     if (status === 'cancelled') {
       const cancelResult = await cancelOrder(order);
@@ -177,8 +184,15 @@ async function update(req: Request, res: Response) {
       }
     }
 
-    if (status) order.status = status;
-
+    if (status === 'rescheduled') {
+      const rescheduledResult = await rescheduledOrder(order);
+      if (!rescheduledResult.success) {
+        return res.status(400).json({ message: rescheduledResult.message });
+      }
+    }
+  
+    //if (status) order.status = status;
+ 
     if (orderItems) {
       order.orderItems = orderItems.map((item: any) => ({
         productId: item.productId,
@@ -204,10 +218,11 @@ async function cancelOrder(order: Order) {
   const timeDiff = now.getTime() - orderDate.getTime();
   const hoursDiff = timeDiff / (1000 * 60 * 60);
 
-  if (hoursDiff > 24) { 
+  if (hoursDiff > 24) {
     return { success: false, message: 'La orden solo puede cancelarse dentro de un día de su creación.' };
   }
-
+  order.updatedDate = new Date();
+  order.status = 'cancelled';
   for (const item of order.orderItems) {
     const product = await em.findOne(Product, { id: item.productId });
     if (product) {
@@ -218,40 +233,82 @@ async function cancelOrder(order: Order) {
 
   if (order.user && order.user._id) {
     const user = await em.findOne(User, { id: order.user._id.toString() });
-
     if (user?.email) {
       await mailService.sendOrderCancellationEmail(user.email, order.orderNumber);
-    } else {
-      console.warn('No email found for user:', order.user._id.toString());
     }
-  } else {
-    console.warn('Order has no associated user or user ID');
   }
 
+  await em.persistAndFlush(order);
   return { success: true };
 }
 
 async function completeOrder(order: Order) {
   try {
+    order.updatedDate = new Date();
+    order.status = 'completed';
     if (order.user && order.user._id) {
       const user = await em.findOne(User, { id: order.user._id.toString() });
-
       if (user?.email) {
-        console.log('Sending order completion email to:', user.email);
         await mailService.sendOrderCompletionEmail(user.email, order.orderNumber);
-      } else {
-        console.warn('No email found for user:', order.user._id.toString());
       }
-    } else {
-      console.warn('Order has no associated user or user ID');
     }
 
+    await em.persistAndFlush(order);
     return { success: true };
   } catch (error) {
     console.error('Error completing order:', error);
-    return { success: false, message: 'Error al enviar correo de completado' };
+    return { success: false, message: 'Error al completar la orden' };
   }
 }
+
+async function rescheduledOrder(order: Order) {
+  try {
+    console.log(`Rescheduling order ${order.id}, current reschedule count: ${order.rescheduleQuantity}`);
+    order.updatedDate = new Date();
+    order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
+    if (order.rescheduleQuantity > 2) {
+      console.log("se cancela")
+      return await cancelOrder(order);
+    } else {
+      console.log("se reenvia")
+      order.status = 'rescheduled';
+      console.log(`Order ${order.id} rescheduled, new reschedule count: ${order.rescheduleQuantity}`);
+      console.log('Order after update:', order.status);
+      if (order.user && order.user._id) {
+        const user = await em.findOne(User, { id: order.user._id.toString() });
+        if (user?.email) {
+          await mailService.sendOrderRescheduleEmail(user.email, order.orderNumber, order.rescheduleQuantity);
+        }
+      }
+    }
+
+    await em.persistAndFlush(order);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in rescheduledOrder:', error);
+    return { success: false, message: 'Error al procesar reschedule' };
+  }
+}
+
+async function inDistributionOrder(order: Order) {
+  try {
+    order.updatedDate = new Date();
+    order.status = 'in distribution';
+    if (order.user && order.user._id) {
+      const user = await em.findOne(User, { id: order.user._id.toString() });
+      if (user?.email) {
+        await mailService.sendOrderInDistributionEmail(user.email, order.orderNumber);
+      }
+    }
+
+    await em.persistAndFlush(order);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in inDistributionOrder:', error);
+    return { success: false, message: 'Error al poner en distribución' };
+  }
+}
+
 
 async function remove(req: Request, res: Response){
   try{
@@ -307,6 +364,76 @@ async function findByOrderNumber(req: Request, res: Response) {
   }
 }
 
+async function bulkUpdateStatus(req: Request, res: Response) {
+  try {
+    const { orderIds, status } = req.body;
+
+    if (!Array.isArray(orderIds) || !status) {
+      return res.status(400).json({ message: 'orderIds array and status are required' });
+    }
+
+    const orders = await em.find(Order, { id: { $in: orderIds } });
+
+    if (!orders.length) {
+      return res.status(404).json({ message: 'No orders found for given IDs' });
+    }
+
+    for (const order of orders) {
+      console.log(`Processing bulk update for order ${order.id} → ${status}`);
+
+      if (status === 'completed') {
+        const completeResult = await completeOrder(order);
+        if (!completeResult.success) {
+          return res.status(400).json({ message: completeResult.message });
+        }
+      }
+
+      if (status === 'rescheduled') {
+        const rescheduledResult = await rescheduledOrder(order);
+        if (!rescheduledResult.success) {
+          return res.status(400).json({ message: rescheduledResult.message });
+        }
+      }
+
+      order.updatedDate = new Date();
+    }
+
+    await em.persistAndFlush(orders);
+
+    res.status(200).json({
+      message: `Orders updated to status "${status}" successfully`,
+      data: orders
+    });
+  } catch (error: any) {
+    console.error("Error in bulkUpdateStatus:", error);
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function findInDistribution(req: Request, res: Response) {
+  try {
+    const orders = await em.find(Order, { status: 'in distribution' }, {
+  populate: [
+    'user',
+    'user.city',
+    'user.city.province'],
+    });
+
+    res.status(200).json({
+      message: 'Orders in distribution found successfully',
+      data: orders
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
+export {
+  rescheduledOrder,
+  inDistributionOrder
+}
+
 export const controller = {
   findAll,
   findOne,
@@ -314,5 +441,7 @@ export const controller = {
   update,
   remove,
   findOrdersByEmail,
-  findByOrderNumber
+  findByOrderNumber,
+  bulkUpdateStatus,
+  findInDistribution
 }
