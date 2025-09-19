@@ -5,4 +5,3 @@ import { authenticateAdmin } from "../auth/authMiddleware.js";
 export const vrpRouter = Router();
 
 vrpRouter.get('/routes/weekly',authenticateAdmin, controller.getLatestWeeklyRoutes);
-
