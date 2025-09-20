@@ -21,14 +21,6 @@ function getDateRangeUTC(startDate?: string, endDate?: string) {
   // Convertir a UTC restando el offset local
   const startUTC = new Date(startLocal.getTime() - startLocal.getTimezoneOffset() * 60000);
   const endUTC = new Date(endLocal.getTime() - endLocal.getTimezoneOffset() * 60000);
-
-  // Debug
-  console.log("=== Rango de Fechas ===");
-  console.log("Start local:", startLocal.toString());
-  console.log("End local:", endLocal.toString());
-  console.log("Start UTC :", startUTC.toISOString());
-  console.log("End UTC   :", endUTC.toISOString());
-
   return { $gte: startUTC, $lte: endUTC };
 }
 
@@ -297,49 +289,56 @@ async function getTopCancelledCustomers(req: Request, res: Response) {
 }
 
 // ----------------- ÓRDENES -----------------
-
 async function getOrderStatusDistribution(req: Request, res: Response) {
   try {
-    const { startDate, endDate } = req.query;
-    const dateRange = getDateRangeUTC(startDate as string, endDate as string);
-    if (!dateRange) {
-      return res.status(400).json({ message: 'Debe enviar startDate y endDate' });
-    }
+    const filters = buildOrderFilters(req, false);
+    const orders = await em.find(Order, filters);
 
-    const orders: Loaded<Order, 'user'>[] = await em.find(Order, {}); // traemos todas, filtramos manualmente
-    const statusDistribution: Record<string, number> = {};
+    const { startDate, endDate } = req.query;
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+
+    const summary = { completed: 0, pending: 0, cancelled: 0, rescheduled: 0 };
 
     for (const order of orders) {
-      const orderDate = order.orderDate;
-      const updatedDate = order.updatedDate;
-
-      // ignorar órdenes fuera de rango completamente
-      if (!orderDate || orderDate > dateRange.$lte) continue;
-
-      // Caso 1: nunca fue actualizada o se actualizó después del rango
-      if (!updatedDate || updatedDate > dateRange.$lte) {
-        if (orderDate >= dateRange.$gte && orderDate <= dateRange.$lte) {
-          // solo contar si entró en el rango como pendiente
-          statusDistribution['pending'] = (statusDistribution['pending'] || 0) + 1;
-        }
+      const created = order.orderDate ? new Date(order.orderDate) : null;
+      const updated = order.updatedDate ? new Date(order.updatedDate) : null;
+      const rescheduleQty = Number(order.rescheduleQuantity || 0);
+      
+      // 1. Si la fecha de creación no está dentro del rango, se ignora
+      if (!created || created < start || created > end) {
+        continue;
       }
-      // Caso 2: se actualizó dentro del rango
-      else if (updatedDate >= dateRange.$gte && updatedDate <= dateRange.$lte) {
-        // Durante parte del rango estuvo pendiente
-        statusDistribution['pending'] = (statusDistribution['pending'] || 0) + 1;
-        // Luego cambió a su estado actual
-        statusDistribution[order.status] = (statusDistribution[order.status] || 0) + 1;
+
+      // 2. Si no tiene fecha de actualización => pendiente
+      if (!updated) {
+        summary.pending++;
+        continue;
       }
-      // Caso 3: se actualizó antes del rango → ya entró al rango con el estado actual
-      else if (updatedDate < dateRange.$gte) {
-        statusDistribution[order.status] = (statusDistribution[order.status] || 0) + 1;
+
+      // 3. Si tiene reenvíos
+      if (rescheduleQty === 1 || rescheduleQty === 2) {
+        summary.rescheduled++;
+        continue;
+      }
+      if (rescheduleQty >= 3) {
+        summary.cancelled++;
+        continue;
+      }
+
+      // 4. Si no hay reenvíos => usar status
+      if (order.status === 'completed') {
+        summary.completed++;
+      } else if (order.status === 'cancelled') {
+        summary.cancelled++;
+      } else {
+        summary.pending++;
       }
     }
 
-    const result = Object.entries(statusDistribution).map(([status, total]) => ({ status, total }));
-    res.status(200).json({ message: 'Distribución de órdenes por estado', data: result });
+    res.status(200).json({ message: 'Resumen de órdenes por estado', data: summary });
   } catch (error: any) {
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ message: 'Error interno', error: error.message });
   }
 }
 
