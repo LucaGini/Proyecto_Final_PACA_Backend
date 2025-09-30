@@ -4,7 +4,7 @@ import { orm } from '../shared/db/orm.js';
 import { User } from '../user/user.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN || "", 
@@ -55,52 +55,47 @@ async function findOne(req: Request, res: Response){
   }
 }
 
-async function create(req: Request, res: Response){
-  try{
-    const {userId, orderItems, total, paymentMethod} = req.body;
-
-    const user = await em.findOneOrFail(User, {id: userId}, {populate: ['city']});
+async function create(req: Request, res: Response) {
+  try {
+    const { userId, orderItems, total, paymentMethod } = req.body;
+    const user = await em.findOneOrFail(User, { id: userId }, { populate: ['city'] });
 
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    
+
     const allOrders = await em.find(Order, {}, {
       orderBy: { orderNumber: 'DESC' },
       fields: ['orderNumber'],
       limit: 1
     });
-    
+
     const lastOrder = allOrders.length > 0 ? allOrders[0] : null;
-    
     let sequentialNumber = 1;
-    
+
     if (lastOrder?.orderNumber) {
       const currentYearMonth = `${year}${month}`;
       const lastOrderYearMonth = lastOrder.orderNumber.substring(0, 6);
-      
+
       if (lastOrderYearMonth === currentYearMonth) {
         const lastSequential = parseInt(lastOrder.orderNumber.substring(6));
         sequentialNumber = lastSequential + 1;
       }
     }
-    
-    // Formato: YYYYMM + número secuencial (6 dígitos)
+
     const orderNumber = `${year}${month}${String(sequentialNumber).padStart(6, '0')}`;
 
-    const orderItemsWithProduct = await Promise.all( /// DESDE ACÁ HASTA EL CREATE, ES PARA LA ACTUALIZACIÓN DEL STOCK 
-      orderItems.map(async (item: any) => { 
+    const orderItemsWithProduct = await Promise.all(
+      orderItems.map(async (item: any) => {
         const product = await em.findOneOrFail(Product, { id: item.productId });
 
-         if (!product.isActive) {
-          const error = new Error(`El producto "${product.name}" ya no se encuentra a la venta.`);
-          (error as any).statusCode = 409; // o algún código que uses para conflicto
-          throw error;
+        if (!product.isActive) {
+          throw new Error(`El producto "${product.name}" ya no está a la venta.`);
         }
-        
-        if (product.stock < item.quantity) { // con el verifyStock ya nos aceguramis de que no entre acá, quiza se pueda sacar 
-          throw new Error(`Insufficient stock for product: ${product.name}`);
+
+        if (product.stock < item.quantity) {
+          throw new Error(`Stock insuficiente para: ${product.name}`);
         }
-        
+
         product.stock -= item.quantity;
         return {
           productId: product.id,
@@ -123,77 +118,89 @@ async function create(req: Request, res: Response){
     });
 
     await em.persistAndFlush(order);
+    
+    if (paymentMethod === "mercadoPago") {
+  const preference = new Preference(client);
 
-   if (paymentMethod === "mercadoPago") {
-      const preference = new Preference(client);
+  const items = orderItemsWithProduct.map((item: any) => ({
+    id: item.productId,
+    title: item.productName,
+    quantity: item.quantity,
+    currency_id: "ARS",
+    unit_price: item.unitPrice,
+  }));
 
-      const mpRes = await preference.create({
-        body: {
-          items: orderItemsWithProduct.map((item: any) => ({
-            id: item.productId,
-            title: `Producto ${item.productId}`,
-            quantity: item.quantity,
-            currency_id: "ARS",
-            unit_price: item.unitPrice,
-          })),
-          payer: {
-            email: user.email,
-          },
-          back_urls: {
-            success: `${process.env.FRONTEND_URL}/payment-success`,
-            failure: `${process.env.FRONTEND_URL}/payment-failure`,
-            pending: `${process.env.FRONTEND_URL}/payment-pending`
-          },
-          auto_return: "approved"
-        },
-      });
+  if (user.city?.surcharge && user.city?.surcharge > 0) {
+    items.push({
+      id: "surcharge",
+      title: "Recargo por provincia",
+      quantity: 1,
+      currency_id: "ARS",
+      unit_price: order.user.city?.surcharge,
+    });
+  }
+
+  const mpRes = await preference.create({
+    body: {
+      items,
+      payer: { email: user.email },
+      back_urls: {
+        success: `${process.env.FRONTEND_URL}/payment-success`,
+        failure: `${process.env.FRONTEND_URL}/payment-failure`,
+        pending: `${process.env.FRONTEND_URL}/payment-pending`,
+      },
+      auto_return: "approved",
+      external_reference: order.orderNumber,
+      notification_url: `${process.env.BACKEND_URL}/webhook/mercadopago`,
+    },
+  });
 
       return res.status(201).json({
         message: 'Order created successfully',
         data: {
           order,
-          init_point: mpRes.sandbox_init_point || mpRes.init_point // 👈 URL de pago
+          init_point: mpRes.init_point // 👈 usar siempre init_point
         }
       });
     }
 
-        // Enviar email de confirmación de compra
-    try {
-      // Obtener los nombres de los productos para el email
-      const orderItemsWithNames = await Promise.all(
-        orderItemsWithProduct.map(async (item) => {
-          const product = await em.findOne(Product, { id: item.productId });
-          return {
-            productName: product?.name || 'Producto no encontrado',
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal
-          };
-        })
-      );
+    res.status(201).json({ message: 'Order created successfully', data: order });
+  } catch (error: any) {
+    console.error("Error creando orden:", error);
+    res.status(500).json({ message: error.message });
+  }
+}
 
-      await mailService.sendOrderConfirmationEmail(
-        user.email,
-        user.firstName,
-        {
-          orderNumber: order.orderNumber,
-          orderDate: order.orderDate!,
-          total: order.total,
-          orderItems: orderItemsWithNames,
-          cityName: user.city?.name || '',
-          citySurcharge: user.city?.surcharge || 0
-        }
-      );
-      
-      console.log('Order confirmation email sent to:', user.email);
-    } catch (emailError) {
-      console.error('Error sending order confirmation email:', emailError);
-      // No fallar la creación de la orden si el email falla
+// ===============================
+// WEBHOOK MERCADO PAGO
+// ===============================
+async function webhookMP(req: Request, res: Response) {
+  try {
+    const paymentId = req.body.data?.id;
+    if (!paymentId) return res.sendStatus(200);
+
+    const payment = await new Payment(client).get({ id: paymentId });
+    console.log("AAAAAPago recibido:", payment);
+
+    const orderNumber = payment.external_reference;
+    const order = await em.findOne(Order, { orderNumber }, { populate: ['user'] });
+    if (!order) return res.sendStatus(200);
+
+    if (payment.status === "approved") {
+      order.status = "pending";
+    } else if (payment.status === "pending") {
+      order.status = "awaiting_payment";
+    } else if (payment.status === "rejected") {
+      order.status = "cancelled";
     }
 
-    res.status(201).json({message: 'Order created successfully', data: order});
-  } catch (error: any){
-    res.status(404).json({message: error.message});
+    order.updatedDate = new Date();
+    await em.persistAndFlush(order);
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Error en webhook MP:", err);
+    res.sendStatus(500);
   }
 }
 
@@ -483,4 +490,8 @@ export const controller = {
   findByOrderNumber,
   bulkUpdateStatus,
   findInDistribution
+}
+
+export function registerMPWebhook(app: express.Express) {
+  app.post("/webhook/mercadopago", express.json(), webhookMP);
 }

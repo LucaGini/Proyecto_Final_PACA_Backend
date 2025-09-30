@@ -23,13 +23,16 @@ import { createDefaultAdmin } from './user/admin.seed.js';
 import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import {dashboardRouter} from './dashboard/dashboard.routes.js';
+import { registerMPWebhook } from "./order/order.controller.js";
+
+
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
-
+registerMPWebhook(app); // 👈 esto crea POST /webhook/mercadopago
 
 app.use(cors({
   origin: 'http://localhost:4200'
@@ -57,6 +60,7 @@ app.use('/api/vrp', vrpRouter);
 app.use('/api/chatbot-internal', chatbotInternalRouter); // Nueva API interna segura
 app.use('/api/dashboard', dashboardRouter);
 
+
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
 
@@ -74,3 +78,4 @@ app.listen(PORT, async () => {
   await createDefaultAdmin();
   await createDefaultDriver();
 });
+
