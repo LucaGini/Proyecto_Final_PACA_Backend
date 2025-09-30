@@ -4,6 +4,11 @@ import { orm } from '../shared/db/orm.js';
 import { User } from '../user/user.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
+import { MercadoPagoConfig, Preference } from "mercadopago";
+
+const client = new MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN || "", 
+});
 
 const mailService = new MailService();
 const em = orm.em;
@@ -52,7 +57,7 @@ async function findOne(req: Request, res: Response){
 
 async function create(req: Request, res: Response){
   try{
-    const {userId, orderItems, total} = req.body;
+    const {userId, orderItems, total, paymentMethod} = req.body;
 
     const user = await em.findOneOrFail(User, {id: userId}, {populate: ['city']});
 
@@ -108,17 +113,51 @@ async function create(req: Request, res: Response){
 
     const order = em.create(Order, {
       orderNumber,
-      status: 'pending',
+      status: paymentMethod === "mercadoPago" ? "awaiting_payment" : "pending",
       orderDate: new Date(),
       user,
       orderItems: orderItemsWithProduct,
       total,
-      rescheduleQuantity: 0
+      rescheduleQuantity: 0,
+      paymentMethod
     });
 
     await em.persistAndFlush(order);
 
-    // Enviar email de confirmación de compra
+   if (paymentMethod === "mercadoPago") {
+      const preference = new Preference(client);
+
+      const mpRes = await preference.create({
+        body: {
+          items: orderItemsWithProduct.map((item: any) => ({
+            id: item.productId,
+            title: `Producto ${item.productId}`,
+            quantity: item.quantity,
+            currency_id: "ARS",
+            unit_price: item.unitPrice,
+          })),
+          payer: {
+            email: user.email,
+          },
+          back_urls: {
+            success: `${process.env.FRONTEND_URL}/payment-success`,
+            failure: `${process.env.FRONTEND_URL}/payment-failure`,
+            pending: `${process.env.FRONTEND_URL}/payment-pending`
+          },
+          auto_return: "approved"
+        },
+      });
+
+      return res.status(201).json({
+        message: 'Order created successfully',
+        data: {
+          order,
+          init_point: mpRes.sandbox_init_point || mpRes.init_point // 👈 URL de pago
+        }
+      });
+    }
+
+        // Enviar email de confirmación de compra
     try {
       // Obtener los nombres de los productos para el email
       const orderItemsWithNames = await Promise.all(

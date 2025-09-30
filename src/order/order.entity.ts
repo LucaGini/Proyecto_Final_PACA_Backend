@@ -29,6 +29,9 @@ export class Order extends BaseEntity {
     @Property({ nullable: false, default: '0' })
     rescheduleQuantity!: number;
 
+    @Property({ nullable: false, unique: true })
+    paymentMethod!: string;
+    
     @ManyToOne(() => User, { nullable: false })
     user!: Rel<User>;
 
