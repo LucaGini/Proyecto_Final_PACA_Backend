@@ -1,0 +1,11 @@
+### obtener la última configuración de cron
+GET http://localhost:3000/api/cron
+
+
+### crear una nueva configuración de cron
+POST http://localhost:3000/api/cron/new
+Content-Type: application/json
+
+{
+  "expression": "*12 12 * * 3"
+}

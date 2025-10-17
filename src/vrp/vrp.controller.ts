@@ -5,6 +5,7 @@ import { Vrp } from './vrp.entity.js';
 import cron from 'node-cron';
 import { MailService } from '../auth/mail.service.js';
 import { rescheduledOrder, inDistributionOrder } from '../order/order.controller.js';
+import { CronConfig } from '../cron/cron.entity.js'
 
 const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
 const mailService = new MailService();
@@ -251,17 +252,35 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
   }
 }
 
-//---------- CRON ----------
-// cron.schedule('51 17 * * 0', async () => {
-//   console.log(" Ejecutando generación de rutas automáticamente...");
-//   try {
-//     await generateWeeklyRoutes();
-//     console.log("Rutas generadas correctamente y mail enviado");
-//   } catch (err) {
-//     console.error("Error al generar rutas:", err);
-//   }
-// });
+// ========== CONFIGURAR CRON DINÁMICO ==========
 
+async function setupDynamicCron() {
+  try {
+    const cronRepo = orm.em.getRepository(CronConfig);
+    const latestConfig = await cronRepo.findOne({}, { orderBy: { lastUpdated: 'DESC' } });
+
+    const cronExpression = latestConfig?.expression || '59 23 * * 0'; // Default
+
+    console.log(`🕒 Cron actual: ${cronExpression}`);
+
+    cron.schedule(cronExpression, async () => {
+      console.log("🧩 Ejecutando generación automática de rutas...");
+      try {
+        await generateWeeklyRoutes();
+        console.log("✅ Rutas generadas correctamente y mail enviado");
+      } catch (err) {
+        console.error("❌ Error al generar rutas:", err);
+      }
+    });
+  } catch (err) {
+    console.error("Error configurando el cron dinámico:", err);
+  }
+}
+
+// Llamar una vez al iniciar el servidor
+setupDynamicCron();
+
+// ========== EXPORTS ==========
 export const controller = {
-  getLatestWeeklyRoutes
+  getLatestWeeklyRoutes,
 };

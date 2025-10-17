@@ -23,6 +23,7 @@ import { createDefaultAdmin } from './user/admin.seed.js';
 import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import {dashboardRouter} from './dashboard/dashboard.routes.js';
+import { cronRouter } from './cron/cron.routes.js';
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use('/api/chatbot', chatbotRouter);
 app.use('/api/vrp', vrpRouter);
 app.use('/api/chatbot-internal', chatbotInternalRouter); // Nueva API interna segura
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/cron', cronRouter);
 
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
