@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { CronConfig } from './cron.entity.js';
+import { setupDynamicCron } from '../vrp/vrp.controller.js'; // 👈 Import clave
 
 async function createCron(req: Request, res: Response) {
   try {
     const { expression } = req.body;
 
     if (!expression) {
-      return res.status(400).json({ message: 'Falta el parámetro "expression"'});
+      return res.status(400).json({ message: 'Falta el parámetro "expression"' });
     }
 
     const config = orm.em.create(CronConfig, {
@@ -17,8 +18,11 @@ async function createCron(req: Request, res: Response) {
 
     await orm.em.persistAndFlush(config);
 
+    // 🔁 Reconfigurar cron dinámico al vuelo
+    await setupDynamicCron();
+
     return res.status(201).json({
-      message: 'Nueva configuración de cron creada correctamente',
+      message: 'Nueva configuración de cron creada y aplicada correctamente',
       expression: config.expression,
       lastUpdated: config.lastUpdated
     });

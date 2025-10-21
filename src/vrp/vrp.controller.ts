@@ -3,23 +3,25 @@ import { orm } from '../shared/db/orm.js';
 import { Order } from '../order/order.entity.js';
 import { Vrp } from './vrp.entity.js';
 import cron from 'node-cron';
+import type { ScheduledTask } from 'node-cron';
 import { MailService } from '../auth/mail.service.js';
 import { rescheduledOrder, inDistributionOrder } from '../order/order.controller.js';
-import { CronConfig } from '../cron/cron.entity.js'
+import { CronConfig } from '../cron/cron.entity.js';
+
 
 const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
 const mailService = new MailService();
 
-// --- Helpers ---
+
+// ========== HELPERS ==========
+
 async function geocodeAddress(address: string) {
   try {
     const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&language=es&countrycode=ar&limit=1`;
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data.results || data.results.length === 0) {
-      return null;
-    }
+    if (!data.results || data.results.length === 0) return null;
 
     const result = data.results[0];
     const confidence = result.confidence ?? 0;
@@ -53,6 +55,26 @@ function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lo
   const h = Math.sin(dLat / 2) ** 2 +
             Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function shuffle(arr: any[]) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+
+function crossover(a: any[], b: any[]) {
+  const start = Math.floor(Math.random() * a.length);
+  const end = start + Math.floor(Math.random() * (a.length - start));
+  const child = a.slice(start, end);
+  for (const x of b) {
+    if (!child.includes(x)) child.push(x);
+  }
+  return child;
+}
+
+function mutate(route: any[]) {
+  const i = Math.floor(Math.random() * route.length);
+  const j = Math.floor(Math.random() * route.length);
+  [route[i], route[j]] = [route[j], route[i]];
 }
 
 function geneticOptimize(points: any[], depot: any, generations = 200, populationSize = 50) {
@@ -94,26 +116,6 @@ function geneticOptimize(points: any[], depot: any, generations = 200, populatio
   return [depot, ...best, depot];
 }
 
-function crossover(a: any[], b: any[]) {
-  const start = Math.floor(Math.random() * a.length);
-  const end = start + Math.floor(Math.random() * (a.length - start));
-  const child = a.slice(start, end);
-  for (const x of b) {
-    if (!child.includes(x)) child.push(x);
-  }
-  return child;
-}
-
-function mutate(route: any[]) {
-  const i = Math.floor(Math.random() * route.length);
-  const j = Math.floor(Math.random() * route.length);
-  [route[i], route[j]] = [route[j], route[i]];
-}
-
-function shuffle(arr: any[]) {
-  return arr.sort(() => Math.random() - 0.5);
-}
-
 function buildGoogleMapsLink(route: any[]) {
   if (route.length < 2) return null;
   const uniqueRoute = route.filter((point, i, arr) => {
@@ -124,13 +126,12 @@ function buildGoogleMapsLink(route: any[]) {
   return `https://www.google.com/maps/dir/${addresses.join("/")}`;
 }
 
-// ----
+
+// ========== GENERAR RUTAS ==========
+
 async function generateWeeklyRoutes() {
   const orders = await orm.em.find(Order, {
-    $or: [
-      { status: 'pending'},
-      { status: 'rescheduled' }
-    ]
+    $or: [{ status: 'pending' }, { status: 'rescheduled' }]
   }, { populate: ['user.city.province'] });
 
   const locationsByProvince: Record<string, any[]> = {};
@@ -140,6 +141,7 @@ async function generateWeeklyRoutes() {
     const user = order.user as any;
     const city = user?.city as any;
     const province = city?.province as any;
+    console.log(`LA PRONVINNICASFJSHFSJFHSJDHJH ${province?.name}`);
 
     const rawProvince = province?.name ?? 'Sin provincia';
     const provinceName = rawProvince.trim().toLowerCase();
@@ -189,7 +191,7 @@ async function generateWeeklyRoutes() {
       status: order.status,
       ...coords
     };
-
+    console.log('la provicnia es JFKLDSFJSDFJSLJL: ', provinceName);
     if (!locationsByProvince[provinceName]) {
       locationsByProvince[provinceName] = [];
     }
@@ -233,6 +235,9 @@ async function generateWeeklyRoutes() {
   }
 }
 
+
+// ========== GET ÚLTIMA RUTA ==========
+
 async function getLatestWeeklyRoutes(req: Request, res: Response) {
   console.log("getLatestWeeklyRoutes llamado");
   try {
@@ -252,18 +257,33 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
   }
 }
 
-// ========== CONFIGURAR CRON DINÁMICO ==========
 
-async function setupDynamicCron() {
+// ========== CRON DINÁMICO ==========
+
+let currentCronJob: ScheduledTask | null = null;
+
+
+export async function setupDynamicCron() {
   try {
     const cronRepo = orm.em.getRepository(CronConfig);
-    const latestConfig = await cronRepo.findOne({}, { orderBy: { lastUpdated: 'DESC' } });
+    const [latestConfig] = await cronRepo.findAll({
+      orderBy: { lastUpdated: 'DESC' },
+      limit: 1
+    });
+
 
     const cronExpression = latestConfig?.expression || '59 23 * * 0'; // Default
 
-    console.log(`🕒 Cron actual: ${cronExpression}`);
+    console.log(`🕒 Configurando cron dinámico con: ${cronExpression}`);
 
-    cron.schedule(cronExpression, async () => {
+    // Si ya había un job activo, cancelarlo
+    if (currentCronJob) {
+      currentCronJob.stop();
+      console.log('⏹️ Cron anterior detenido');
+    }
+
+    // Crear nuevo job
+    currentCronJob = cron.schedule(cronExpression, async () => {
       console.log("🧩 Ejecutando generación automática de rutas...");
       try {
         await generateWeeklyRoutes();
@@ -272,13 +292,16 @@ async function setupDynamicCron() {
         console.error("❌ Error al generar rutas:", err);
       }
     });
+
+    console.log('✅ Nuevo cron programado correctamente');
   } catch (err) {
     console.error("Error configurando el cron dinámico:", err);
   }
 }
 
-// Llamar una vez al iniciar el servidor
+// Inicializar cron al arrancar el servidor
 setupDynamicCron();
+
 
 // ========== EXPORTS ==========
 export const controller = {
