@@ -1,54 +1,69 @@
 import { Request, Response } from 'express';
+import cron, { ScheduledTask } from 'node-cron';
 import { orm } from '../shared/db/orm.js';
 import { CronConfig } from './cron.entity.js';
-import { setupDynamicCron } from '../vrp/vrp.controller.js'; // 👈 Import clave
+import { generateWeeklyRoutes } from '../vrp/vrp.controller.js'; // 👈 tu función VRP
 
-async function createCron(req: Request, res: Response) {
+let currentCronJob: ScheduledTask | null = null;
+
+export async function createCron(req: Request, res: Response) {
   try {
     const { expression } = req.body;
-
-    if (!expression) {
-      return res.status(400).json({ message: 'Falta el parámetro "expression"' });
+    if (!expression || !cron.validate(expression)) {
+      return res.status(400).json({ error: 'Expresión CRON inválida o faltante' });
     }
 
-    const config = orm.em.create(CronConfig, {
-      expression,
-      lastUpdated: new Date()
+    if (currentCronJob) {
+      currentCronJob.stop();
+      currentCronJob = null;
+      console.log('🛑🛑🛑 Cron anterior detenido.');
+    }
+    currentCronJob = cron.schedule(expression, async () => {
+      console.log(`Ejecutando job automático (${expression})...`);
+      try {
+        await generateWeeklyRoutes();
+        console.log('Rutas generadas exitosamente mediante cron.');
+      } catch (err) {
+        console.error('Error ejecutando generateWeeklyRoutes:', err);
+      }
     });
 
-    await orm.em.persistAndFlush(config);
+    const em = orm.em.fork(); // 👈 importante
+    const [existing] = await em.find(CronConfig, {}, { limit: 1 });
+    if (existing) {
+      existing.expression = expression;
+      existing.lastUpdated = new Date();
+    } else {
+      const newCron = em.create(CronConfig, { expression, lastUpdated: new Date() });
+      em.persist(newCron);
+    }
+    await em.flush();
 
-    // 🔁 Reconfigurar cron dinámico al vuelo
-    await setupDynamicCron();
-
-    return res.status(201).json({
-      message: 'Nueva configuración de cron creada y aplicada correctamente',
-      expression: config.expression,
-      lastUpdated: config.lastUpdated
-    });
-  } catch (error: any) {
-    console.error('Error creando configuración de cron:', error);
-    return res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    res.status(201).json({ message: 'Cron creado correctamente', expression });
+  } catch (error) {
+    console.error(' Error al crear cron:', error);
+    res.status(500).json({ error: 'Error al crear cron dinámico' });
   }
 }
 
-async function getLatestCron(req: Request, res: Response) {
+export async function getLatestCron(req: Request, res: Response) {
   try {
-    const repo = orm.em.getRepository(CronConfig);
-    const lastConfig = await repo.find({}, { orderBy: { lastUpdated: 'DESC' }, limit: 1 });
-
-    if (!lastConfig.length) {
-      return res.status(404).json({ message: 'No hay configuración de cron guardada' });
+    const [config] = await orm.em.find(CronConfig, {}, { limit: 1 });
+    if (!config) {
+      return res.status(404).json({ message: 'No hay cron configurado actualmente' });
     }
 
-    return res.status(200).json(lastConfig[0]);
-  } catch (error: any) {
-    console.error('Error obteniendo configuración de cron:', error);
-    return res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    res.status(200).json({
+      expression: config.expression,
+      lastUpdated: config.lastUpdated
+    });
+  } catch (error) {
+    console.error('Error al obtener cron:', error);
+    res.status(500).json({ error: 'Error al obtener cron actual' });
   }
 }
 
 export const controller = {
   createCron,
-  getLatestCron
+  getLatestCron,
 };

@@ -1,5 +1,5 @@
 ### obtener la última configuración de cron
-GET http://localhost:3000/api/cron
+GET http://localhost:3000/api/cron/
 
 
 ### crear una nueva configuración de cron
