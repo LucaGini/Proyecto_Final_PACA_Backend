@@ -7,7 +7,7 @@ export const orderRouter = Router();
 orderRouter.put('/bulk-status', controller.bulkUpdateStatus);
 orderRouter.get('/user/email/:email', authenticateClient,controller.findOrdersByEmail);
 orderRouter.get('/number/:orderNumber', controller.findByOrderNumber);
-orderRouter.get('/in-distribution',authenticateDriver, controller.findInDistribution); // lo haría el transportista
+orderRouter.get('/in-distribution/:provinceId', authenticateDriver, controller.findInDistribution);
 orderRouter.get('/', controller.findAll);
 orderRouter.get('/:id', controller.findOne);
 orderRouter.post('/',blockRoleIfLogged, controller.create);

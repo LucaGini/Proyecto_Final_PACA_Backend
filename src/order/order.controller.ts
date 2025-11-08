@@ -419,20 +419,30 @@ async function bulkUpdateStatus(req: Request, res: Response) {
   }
 }
 
-async function findInDistribution(req: Request, res: Response) {
+export async function findInDistribution(req: Request, res: Response) {
   try {
-    const orders = await em.find(Order, { status: 'in distribution' }, {
-  populate: [
-    'user',
-    'user.city',
-    'user.city.province'],
-    });
+    const { provinceId } = req.params;
+
+    if (!provinceId) {
+      return res.status(400).json({ message: 'provinceId is required' });
+    }
+
+    const orders = await em.find(
+      Order,
+      { status: 'in distribution' },
+      { populate: ['user', 'user.city', 'user.city.province'] }
+    );
+
+    const filteredOrders = orders.filter(
+      (order) => order.user?.city?.province?.id === provinceId
+    );
 
     res.status(200).json({
       message: 'Orders in distribution found successfully',
-      data: orders
+      data: filteredOrders,
     });
   } catch (error: any) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 }
