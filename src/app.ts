@@ -23,7 +23,7 @@ import { createDefaultAdmin } from './user/admin.seed.js';
 import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import session from 'express-session';
-import passport from './auth/passport.config.js';
+//import passport from './auth/passport.config.js';
 import {dashboardRouter} from './dashboard/dashboard.routes.js';
 import { cronRouter } from './cron/cron.routes.js';
 
@@ -49,8 +49,8 @@ app.use(session({
   }
 }));
 
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 const secret_key = process.env.JWT_SECRET || 'default_secret';
 
