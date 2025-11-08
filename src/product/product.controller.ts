@@ -74,59 +74,76 @@ async function add(req: Request, res: Response) {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 }
-  async function update(req: Request, res: Response){
-    try{
-      const id = req.params.id;
-      const existingProduct = await em.findOne(Product, { id });
-      if (!existingProduct) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-  
-      const newName = req.body.name;
-      if (newName !== existingProduct.name) {
-        const duplicateProduct = await em.findOne(Product, { name: newName });
-        if (duplicateProduct) {
-          return res.status(400).json({ message: 'Error', error: 'The new name is already used' });
-        }
-      }
 
-      /// LO DE LA IMAGEN NO ESTÁ IMPLEMENTADO EN EL FRONT, PERO AQUÍ ESTÁ POR SI ACASO
-      // Si se sube una nueva imagen, actualizar la URL
-      if (req.file) {
-        // Eliminar la imagen anterior de Cloudinary si existe
-        if (existingProduct.image) {
-          const publicId = extractPublicIdFromUrl(existingProduct.image);
-          if (publicId) {
-            await deleteFromCloudinary(publicId);
-          }
-        }
-        // Asignar la nueva URL de imagen
-        req.body.image = (req.file as any).path;
-      }
-
-      console.log("est o no activo", req.body.isActive);
-      if(!req.body.isActive){
-        return res.status(409).json({ message: 'Error', error: 'Cannot updete an unactive product' });
-      }
-
-      const newStock = Number(req.body.stock);
-      const minimumStock = Number(req.body.minimumStock);
-      if (!isNaN(newStock)) { 
-        if (newStock >= minimumStock) {
-          req.body.mailSent = false;
-        }
-      }
-
-      em.assign(existingProduct, req.body);
-      await em.flush();      
-      res
-        .status(200)
-        .json({message: 'product updated', data: existingProduct});
+async function update(req: Request, res: Response){
+  try{
+    const id = req.params.id;
+    const existingProduct = await em.findOne(Product, { id });
+    if (!existingProduct) {
+      return res.status(404).json({ message: 'Product not found' });
     }
-    catch (error: any) {
-      res.status(404).json({message: error.message});
+
+    const newName = req.body.name;
+    if (newName !== existingProduct.name) {
+      const duplicateProduct = await em.findOne(Product, { name: newName });
+      if (duplicateProduct) {
+        return res.status(400).json({ message: 'Error', error: 'The new name is already used' });
+      }
     }
-  };
+
+    // Si se sube una nueva imagen, actualizar la URL
+    if (req.file) {
+      // Eliminar la imagen anterior de Cloudinary si existe
+      if (existingProduct.image) {
+        const publicId = extractPublicIdFromUrl(existingProduct.image);
+        if (publicId) {
+          await deleteFromCloudinary(publicId);
+        }
+      }
+      // Asignar la nueva URL de imagen
+      req.body.image = (req.file as any).path;
+    }
+
+    // Preparar los datos con las conversiones de tipo correctas
+    const updatedData: any = {
+      name: req.body.name,
+      description: req.body.description,
+      price: parseFloat(req.body.price),
+      stock: parseInt(req.body.stock),
+      minimumStock: parseInt(req.body.minimumStock),
+      isActive: req.body.isActive === 'true' || req.body.isActive === true,
+      category: req.body.category,
+      supplier: req.body.supplier
+    };
+
+    // Si hay imagen nueva, agregarla
+    if (req.body.image) {
+      updatedData.image = req.body.image;
+    }
+
+    console.log("est o no activo", updatedData.isActive);
+    if(!updatedData.isActive){
+      return res.status(409).json({ message: 'Error', error: 'Cannot update an inactive product' });
+    }
+
+    const newStock = updatedData.stock;
+    const minimumStock = updatedData.minimumStock;
+    if (!isNaN(newStock)) { 
+      if (newStock >= minimumStock) {
+        updatedData.mailSent = false;
+      }
+    }
+
+    em.assign(existingProduct, updatedData);
+    await em.flush();      
+    res
+      .status(200)
+      .json({message: 'product updated', data: existingProduct});
+  }
+  catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
   
  async function softDelete(req: Request, res: Response){
   try{

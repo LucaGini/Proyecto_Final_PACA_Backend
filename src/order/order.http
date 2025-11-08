@@ -64,3 +64,7 @@ Content-Type: application/json
 {
     "email": "luisinagutierrez2618@gmail.com"
 }
+
+### Get orders in distribution by province ID
+
+GET http://localhost:3000/api/orders/in-distribution/606e6bbdd9a27b949e6463ce

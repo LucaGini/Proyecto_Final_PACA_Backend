@@ -13,15 +13,20 @@ import { RequestContext } from '@mikro-orm/core';
 import { productRouter } from './product/product.routes.js';
 import { authRouter } from './auth/auth.routes.js';
 import { chatbotRouter } from './chatbot/chatbot.routes.js';
+import { chatbotInternalRouter } from './chatbot/internal/chatbot-internal.routes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { orderRouter } from './order/order.routes.js';
 import dotenv from 'dotenv';
 import { createDefaultAdmin } from './user/admin.seed.js';
+import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import session from 'express-session';
 import passport from './auth/passport.config.js';
+import {dashboardRouter} from './dashboard/dashboard.routes.js';
+import { cronRouter } from './cron/cron.routes.js';
+
 
 dotenv.config();
 
@@ -66,6 +71,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/chatbot', chatbotRouter);
 app.use('/api/vrp', vrpRouter);
+app.use('/api/chatbot-internal', chatbotInternalRouter); // Nueva API interna segura
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/cron', cronRouter);
 
 const __filename = fileURLToPath(import.meta.url); 
 const __dirname = path.dirname(__filename); 
@@ -82,4 +90,5 @@ const PORT = process.env.PORT || 0;
 app.listen(PORT, async () => {
   console.log('Server running on https://localhost:3000');
   await createDefaultAdmin();
+  await createDefaultDriver();
 });
