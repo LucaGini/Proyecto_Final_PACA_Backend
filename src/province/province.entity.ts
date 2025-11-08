@@ -8,7 +8,7 @@ export class Province extends BaseEntity{
     name!: string
 
     @Property({nullable: false, unique: true})
-    password?: string
+    password!: string
     
     @OneToMany(() => City, (city) => city.province, {cascade:[Cascade.ALL]})
     cities = new Collection<City>(this);
