@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { Loaded } from '@mikro-orm/core';
 import dotenv from 'dotenv';
+import { GoogleAuthService } from './google-auth.service.js';
 
 
 dotenv.config();
@@ -14,6 +15,7 @@ dotenv.config();
 const em = orm.em;
 const mailService = new MailService();
 const SECRET_KEY = process.env.JWT_SECRET as string;
+const googleAuthService = new GoogleAuthService();
 
 export const resetPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -67,6 +69,7 @@ export const loginUser = async (req: Request, res: Response) => {
     const findUser = await em.findOne(User, { email }) as Loaded<User, never>;
     if (!findUser) return res.status(401).send({ message: 'Invalid user' });
     if (!findUser.isActive) return res.status(403).json({ message: 'Usuario desactivado' });
+    if (!findUser.password) return res.status(401).json({ message: 'Credenciales inválidas' });
 
     const isPasswordValid = await bcrypt.compare(password, findUser.password);
     if (!isPasswordValid) return res.status(401).json({ message: 'Credenciales inválidas' });
@@ -85,9 +88,104 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
+export const verifyGoogleToken = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token de Google requerido' });
+    }
+
+    // Verificar token con Google
+    const googleUser = await googleAuthService.verifyGoogleToken(token);
+
+    // Buscar usuario existente
+    let user = await em.findOne(User, { email: googleUser.email });
+    let isNewUser = false;
+
+    if (user) {
+      // Usuario existe - CASO LOGIN
+      
+      // Verificar si el usuario está activo
+      if (!user.isActive) {
+        return res.status(403).json({ message: 'Usuario desactivado' });
+      }
+
+      // Si no tiene googleId, agregarlo (usuario creado con email/password)
+      if (!user.googleId) {
+        user.googleId = googleUser.googleId;
+        await em.persistAndFlush(user);
+      }
+      
+      console.log(`Usuario existente autenticado: ${user.email}`);
+    } else {
+      // Usuario no existe - CASO SIGN UP
+      
+      isNewUser = true;
+
+      // Verificar que el email existe
+      if (!googleUser.email) {
+        return res.status(400).json({ message: 'Email no proporcionado por Google' });
+      }
+      
+      user = em.create(User, {
+        googleId: googleUser.googleId,
+        email: googleUser.email,
+        firstName: googleUser.firstName || '',
+        lastName: googleUser.lastName || '',
+        privilege: 'cliente',
+        isActive: true,
+        password: '', 
+        phone: 0, 
+        city: undefined 
+      });
+
+      await em.persistAndFlush(user);
+      console.log(`Nuevo usuario registrado con Google: ${user.email}`);
+
+      
+      try {
+        await mailService.sendWelcomeEmail(user.email, user.firstName);
+      } catch (mailError) {
+        console.error('Error enviando correo de bienvenida:', mailError);
+        // No fallar la operación por el email
+      }
+    }
+
+    // Generar JWT token (igual para login y signup)
+    const expiresIn = 24 * 60 * 60;
+    const accessToken = jwt.sign(
+      { email: user.email, privilege: user.privilege },
+      SECRET_KEY,
+      { expiresIn }
+    );
+
+    res.json({ 
+      accessToken,
+      isNewUser,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        privilege: user.privilege
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error in Google verification:', error);
+    
+    if (error.message === 'Invalid Google token') {
+      return res.status(401).json({ message: 'Token de Google inválido' });
+    }
+    
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
 export const controller = {
   resetPassword,
   loginUser,
-  
+  verifyGoogleToken
 };
 

@@ -22,8 +22,11 @@ import dotenv from 'dotenv';
 import { createDefaultAdmin } from './user/admin.seed.js';
 import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
+import session from 'express-session';
+import passport from './auth/passport.config.js';
 import {dashboardRouter} from './dashboard/dashboard.routes.js';
 import { cronRouter } from './cron/cron.routes.js';
+
 
 dotenv.config();
 
@@ -35,6 +38,19 @@ app.use(cors());
 app.use(cors({
   origin: 'http://localhost:4200'
 }));
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: false, // En producción cambiar a true con HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 const secret_key = process.env.JWT_SECRET || 'default_secret';
 

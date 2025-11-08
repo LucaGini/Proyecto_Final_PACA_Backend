@@ -148,22 +148,39 @@ export async function softDelete(req: Request, res: Response) {
 async function signUp(req: Request, res: Response) {
   try {
     const userData = req.body;
+    
+    // Verificar si ya existe un usuario con ese email
     const existingUser = await em.findOne(User, { email: userData.email });
     if (existingUser) {
-      return res.status(303).json({ message: 'Error', error: 'The user already exists' });
+      // Verificar si es un usuario de Google
+      if (existingUser.googleId && !existingUser.password) {
+        return res.status(409).json({ 
+          message: 'Error', 
+          error: 'Este email ya está registrado con Google. Por favor, inicia sesión con Google.' 
+        });
+      }
+      return res.status(303).json({ 
+        message: 'Error', 
+        error: 'The user already exists' 
+      });
     }
 
-    // Check if city is required based on privilege
+    // Validación de city para no-administradores
     if (userData.privilege !== 'administrador' && !userData.city) {
-      return res.status(400).json({ message: 'Error', error: 'City is required for non-admin users' });
+      return res.status(400).json({ 
+        message: 'Error', 
+        error: 'City is required for non-admin users' 
+      });
     }
 
+    // Hash de la contraseña
     const salt = await bcrypt.genSalt(10);
     userData.password = await bcrypt.hash(userData.password, salt);
 
     const user = em.create(User, userData);
     await em.flush();
 
+    // Enviar email de bienvenida
     try {
       await mailService.sendWelcomeEmail(userData.email, userData.firstName);
     } catch (mailError) {
