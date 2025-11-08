@@ -2,47 +2,37 @@ import { Request, Response } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { Order } from '../order/order.entity.js';
 import { Vrp } from './vrp.entity.js';
-import cron from 'node-cron';
 import { MailService } from '../auth/mail.service.js';
 import { rescheduledOrder, inDistributionOrder } from '../order/order.controller.js';
 
-const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || ""; 
+const OPENCAGE_API_KEY = process.env.OPENCAGE_API_KEY || "";
 const mailService = new MailService();
 
 // --- Helpers ---
-async function geocodeAddress(address: string) {
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&language=es&countrycode=ar&limit=1`;
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data.results || data.results.length === 0) {
-      return null;
-    }
+    if (!data.results || data.results.length === 0) return null;
 
     const result = data.results[0];
     const confidence = result.confidence ?? 0;
     const components = result.components || {};
 
-    if (
-      confidence < 6 ||
-      !components.road ||
-      (!components.house_number && address.includes(" "))
-    ) {
+    if (confidence < 6 || !components.road || (!components.house_number && address.includes(" "))) {
       return null;
     }
 
-    return {
-      lat: result.geometry.lat,
-      lon: result.geometry.lng
-    };
+    return { lat: result.geometry.lat, lon: result.geometry.lng };
   } catch (err) {
     console.error("Error geocodificando dirección:", err);
     return null;
   }
 }
 
-function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const R = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
   const dLon = (b.lon - a.lon) * Math.PI / 180;
@@ -54,7 +44,7 @@ function calculateDistance(a: { lat: number; lon: number }, b: { lat: number; lo
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function geneticOptimize(points: any[], depot: any, generations = 200, populationSize = 50) {
+function geneticOptimize(points: any[], depot: any, generations = 200, populationSize = 50): any[] {
   if (points.length === 0) return [depot, depot];
 
   let population = Array.from({ length: populationSize }, () => shuffle([...points]));
@@ -93,13 +83,11 @@ function geneticOptimize(points: any[], depot: any, generations = 200, populatio
   return [depot, ...best, depot];
 }
 
-function crossover(a: any[], b: any[]) {
+function crossover(a: any[], b: any[]): any[] {
   const start = Math.floor(Math.random() * a.length);
   const end = start + Math.floor(Math.random() * (a.length - start));
   const child = a.slice(start, end);
-  for (const x of b) {
-    if (!child.includes(x)) child.push(x);
-  }
+  for (const x of b) if (!child.includes(x)) child.push(x);
   return child;
 }
 
@@ -109,25 +97,22 @@ function mutate(route: any[]) {
   [route[i], route[j]] = [route[j], route[i]];
 }
 
-function shuffle(arr: any[]) {
+function shuffle(arr: any[]): any[] {
   return arr.sort(() => Math.random() - 0.5);
 }
 
-function buildGoogleMapsLink(route: any[]) {
+function buildGoogleMapsLink(route: any[]): string | null {
   if (route.length < 2) return null;
-  const uniqueRoute = route.filter((point, i, arr) => {
-    if (i === 0) return true;
-    return point.address !== arr[i - 1].address;
-  });
+  const uniqueRoute = route.filter((point, i, arr) => (i === 0 ? true : point.address !== arr[i - 1].address));
   const addresses = uniqueRoute.map(p => encodeURIComponent(p.address));
   return `https://www.google.com/maps/dir/${addresses.join("/")}`;
 }
 
-// ----
-async function generateWeeklyRoutes() {
+// ---- VRP Principal ----
+export async function generateWeeklyRoutes() {
   const orders = await orm.em.find(Order, {
     $or: [
-      { status: 'pending'},
+      { status: 'pending' },
       { status: 'rescheduled' }
     ]
   }, { populate: ['user.city.province'] });
@@ -143,107 +128,73 @@ async function generateWeeklyRoutes() {
     const rawProvince = province?.name ?? 'Sin provincia';
     const provinceName = rawProvince.trim().toLowerCase();
 
-    const fullAddress = [user?.street, user?.streetNumber, city?.name, rawProvince, 'Argentina']
-      .filter(Boolean)
-      .join(', ');
+    const fullAddress = [user?.street, user?.streetNumber, city?.name, rawProvince, 'Argentina'].filter(Boolean).join(', ');
 
     if (!user?.street || !user?.streetNumber || !city?.name || !province?.name) {
-      notGeolocated.push({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        reason: 'Dirección incompleta',
-        address: fullAddress,
-        total: order.total,
-        firstName: user?.firstName,
-        lastName: user?.lastName,
-      });
+      notGeolocated.push({ 
+        orderId: order.id, 
+        orderNumber: order.orderNumber, 
+        reason: 'Dirección incompleta', 
+        address: fullAddress, 
+        total: order.total, 
+        firstName: user?.firstName, 
+        lastName: user?.lastName });
       await rescheduledOrder(order);
       continue;
     }
 
     const coords = await geocodeAddress(fullAddress);
     if (!coords) {
-      notGeolocated.push({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        reason: 'No se pudo geocodificar',
-        address: fullAddress,
-        total: order.total,
-        firstName: user?.firstName,
-        lastName: user?.lastName,  
-      });
+      notGeolocated.push({ orderId: order.id, 
+        orderNumber: order.orderNumber, 
+        reason: 'No se pudo geocodificar', 
+        address: fullAddress, 
+        total: order.total, 
+        firstName: user?.firstName, 
+        lastName: user?.lastName });
       await rescheduledOrder(order);
       continue;
     }
 
     await inDistributionOrder(order);
 
-    const location = {
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      total: order.total,
-      firstName: user?.firstName,
-      lastName: user?.lastName,
-      address: fullAddress,
-      status: order.status,
-      ...coords
-    };
-
-    if (!locationsByProvince[provinceName]) {
-      locationsByProvince[provinceName] = [];
-    }
+    const location = { 
+      orderId: order.id, 
+      orderNumber: order.orderNumber, 
+      total: order.total, 
+      firstName: user?.firstName, 
+      lastName: user?.lastName, 
+      address: fullAddress, 
+      status: order.status, ...coords };
+    if (!locationsByProvince[provinceName]) locationsByProvince[provinceName] = [];
     locationsByProvince[provinceName].push(location);
   }
 
   await orm.em.persistAndFlush(orders);
 
-  const depot = {
-    lat: -32.9557,
-    lon: -60.6489,
-    address: 'UTN FRRo, Zeballos 1341, Rosario, Santa Fe'
-  };
+  const depot = { lat: -32.9557, lon: -60.6489, address: 'UTN FRRo, Zeballos 1341, Rosario, Santa Fe' };
 
   const routesByProvince: Record<string, any> = {};
   for (const [provinceName, locations] of Object.entries(locationsByProvince)) {
     const route = geneticOptimize(locations, depot);
     const mapsLink = buildGoogleMapsLink(route);
-
-    routesByProvince[provinceName] = {
-      route,
-      mapsLink
-    };
+    routesByProvince[provinceName] = { route, mapsLink };
   }
 
-  const result = {
-    totalOrders: orders.length,
-    routesByProvince,
-    notGeolocated
-  };
+  const result = { totalOrders: orders.length, routesByProvince, notGeolocated };
 
-  const weekly = orm.em.create(Vrp, {
-    generatedAt: new Date(),
-    data: JSON.stringify(result)
-  });
+  const weekly = orm.em.create(Vrp, { generatedAt: new Date(), data: JSON.stringify(result) });
   await orm.em.persistAndFlush(weekly);
 
-  // Enviar mail con los links
   for (const [province, data] of Object.entries(routesByProvince)) {
     await mailService.sendRoutesEmail(province, data.mapsLink);
   }
 }
 
-async function getLatestWeeklyRoutes(req: Request, res: Response) {
-  console.log("getLatestWeeklyRoutes llamado");
+export async function getLatestWeeklyRoutes(req: Request, res: Response) {
   try {
-    const last = await orm.em.find(Vrp, {}, {
-      orderBy: { generatedAt: 'DESC' },
-      limit: 1
-    });
-
-    if (!last || last.length === 0) {
-      return res.status(404).json({ message: "No hay rutas generadas aún" });
-    }
-
+    const last = await orm.em.find(Vrp, {}, { orderBy: { generatedAt: 'DESC' }, limit: 1 });
+    if (!last || last.length === 0) return res.status(404).json({ message: "No hay rutas generadas aún" });
     res.status(200).json(JSON.parse(last[0].data));
   } catch (err: any) {
     console.error(err);
@@ -251,17 +202,5 @@ async function getLatestWeeklyRoutes(req: Request, res: Response) {
   }
 }
 
-//---------- CRON ----------
-// cron.schedule('51 17 * * 0', async () => {
-//   console.log(" Ejecutando generación de rutas automáticamente...");
-//   try {
-//     await generateWeeklyRoutes();
-//     console.log("Rutas generadas correctamente y mail enviado");
-//   } catch (err) {
-//     console.error("Error al generar rutas:", err);
-//   }
-// });
-
-export const controller = {
-  getLatestWeeklyRoutes
-};
+// --- Export controlador solo de rutas (el cron se maneja aparte) ---
+export const controller = { getLatestWeeklyRoutes, generateWeeklyRoutes };

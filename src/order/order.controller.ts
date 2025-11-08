@@ -105,6 +105,12 @@ async function create(req: Request, res: Response){
         };
       })
     );
+    
+
+    console.log("Total antes de redondear:", total);
+
+    const roundedTotal = Math.round((parseFloat(total) + Number.EPSILON) * 100) / 100;
+    console.log("Total después de redondear:", roundedTotal);
 
     const order = em.create(Order, {
       orderNumber,
@@ -112,9 +118,10 @@ async function create(req: Request, res: Response){
       orderDate: new Date(),
       user,
       orderItems: orderItemsWithProduct,
-      total,
+      total: roundedTotal,
       rescheduleQuantity: 0
     });
+
 
     await em.persistAndFlush(order);
 
@@ -192,7 +199,6 @@ async function update(req: Request, res: Response) {
     }
   
     //if (status) order.status = status;
- 
     if (orderItems) {
       order.orderItems = orderItems.map((item: any) => ({
         productId: item.productId,
@@ -200,7 +206,10 @@ async function update(req: Request, res: Response) {
         unitPrice: item.unitPrice,
         subtotal: item.quantity * item.unitPrice,
       }));
-      order.total = orderItems.reduce((acc: number, item: any) => acc + item.subtotal, 0);
+
+      const newTotal = orderItems.reduce((acc: number, item: any) => acc + item.subtotal, 0);
+      order.total = Math.round((newTotal + Number.EPSILON) * 100) / 100;
+      console.log("New total after update:", order.total);
     }
 
     order.updatedDate = new Date();
