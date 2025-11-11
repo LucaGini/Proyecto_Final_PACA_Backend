@@ -48,12 +48,11 @@ export class User extends BaseEntity {
     @Property({ nullable: false })
     isActive: boolean = true;
 
-    @OneToMany(() => Order, (order) => order.user, {cascade:[Cascade.ALL]})
-    orders = new Collection<Order>(this);
-
     @ManyToOne(() => Province, { nullable: true })
     province?: Rel<Province>;
 
+    @OneToMany(() => Order, (order) => order.user, {cascade:[Cascade.ALL]})
+    orders = new Collection<Order>(this);
 
     // vi un par de videos q usan isDirty, pero no me lo reconoce 
     // así q tuve q poner un poco más de lógica en el controller en las funcione

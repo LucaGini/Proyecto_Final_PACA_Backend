@@ -68,3 +68,7 @@ Content-Type: application/json
 ### Get orders in distribution by province ID
 
 GET http://localhost:3000/api/orders/in-distribution/606e6bbdd9a27b949e6463ce
+
+### Get all orders
+GET http://localhost:3000/api/orders/driver/orders
+Content-Type: application/json

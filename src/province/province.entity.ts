@@ -7,9 +7,6 @@ import { User } from '../user/user.entity.js';
 export class Province extends BaseEntity{
     @Property({nullable: false, unique: true})
     name!: string
-
-    @Property({nullable: false, unique: true})
-    password!: string
     
     @OneToMany(() => City, (city) => city.province, {cascade:[Cascade.ALL]})
     cities = new Collection<City>(this);
