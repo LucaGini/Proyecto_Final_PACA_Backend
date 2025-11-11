@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { Order } from '../order/order.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
+import { PaginationHelper, PaginationQuery } from '../shared/types/pagination.types.js';
 
 const em = orm.em.fork();
 const mailService = new MailService();
@@ -37,6 +38,59 @@ async function findAll(req: Request, res: Response){
   } catch (err) {
     console.error('Error al obtener usuarios:', err);
     res.status(500).json({ message: 'Error al obtener usuarios' });
+  }
+};
+
+async function findAllPaginated(req: Request, res: Response){
+  try {
+    // Parse pagination parameters
+    const { page, limit, offset } = PaginationHelper.validateAndNormalize(req.query as PaginationQuery);
+    
+    // Build filter - maintain existing filtering logic
+    const isActiveParam = req.query.isActive;
+    const searchTerm = req.query.q?.toString().trim().toLowerCase();
+
+    const filter: any = {
+      privilege: 'cliente' 
+    };
+ 
+    if (isActiveParam === 'true') {
+      filter.isActive = true;
+    } else if (isActiveParam === 'false') {
+      filter.isActive = false;
+    }
+
+    if (searchTerm) {
+      filter.$or = [
+        { firstName: { $ilike: `%${searchTerm}%` } },
+        { lastName: { $ilike: `%${searchTerm}%` } },
+        { email: { $ilike: `%${searchTerm}%` } }
+      ];
+    }
+
+    // Get total count with filter
+    const totalItems = await em.count(User, filter);
+    
+    // Get paginated data with filter
+    const users = await em.find(User, filter, {
+      limit,
+      offset,
+      orderBy: { firstName: 'ASC' } // Alphabetical order by first name
+    });
+    
+    // Create paginated response
+    const response = PaginationHelper.createResponse(
+      users,
+      page,
+      limit,
+      totalItems,
+      'Users found successfully'
+    );
+    
+    res.status(200).json(response);
+  } catch (err) {
+    console.error('Error al obtener usuarios paginados:', err);
+    res.status(500).json({ message: 'Error al obtener usuarios paginados' });
   }
 };
 
@@ -232,6 +286,7 @@ async function updatePassword(req: Request, res: Response) {
   
   export const controller = {  
     findAll, 
+    findAllPaginated,
     findOne,
     update,
     softDelete,

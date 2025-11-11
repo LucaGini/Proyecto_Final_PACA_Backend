@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Product } from './product.entity.js';
 import { orm } from '../shared/db/orm.js';
 import { deleteFromCloudinary, extractPublicIdFromUrl } from '../shared/db/image_processor/cloudinary_middleware.js';
+import { PaginationHelper, PaginationQuery } from '../shared/types/pagination.types.js';
 
 const em = orm.em;
 
@@ -15,10 +16,70 @@ async function findAll(req: Request, res: Response){
   }
 };
 
+async function findAllPaginated(req: Request, res: Response){
+  try{
+    // Parse pagination parameters
+    const { page, limit, offset } = PaginationHelper.validateAndNormalize(req.query as PaginationQuery);
+    
+    // Get total count
+    const totalItems = await em.count(Product, {});
+    
+    // Get paginated data
+    const products = await em.find(Product, {}, {
+      limit,
+      offset,
+      orderBy: { name: 'ASC' } // Alphabetical order
+    });
+    
+    // Create paginated response
+    const response = PaginationHelper.createResponse(
+      products,
+      page,
+      limit,
+      totalItems,
+      'Products found successfully'
+    );
+    
+    res.status(200).json(response);
+  } catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
+
 async function findActive(req: Request, res: Response){
   try{
     const products = await em.find(Product,  { isActive: true });
     res.status(200).json({message:'found all products',data: products});
+  } catch (error: any) {
+    res.status(404).json({message: error.message});
+  }
+};
+
+async function findActivePaginated(req: Request, res: Response){
+  try{
+    // Parse pagination parameters
+    const { page, limit, offset } = PaginationHelper.validateAndNormalize(req.query as PaginationQuery);
+    
+    // Get total count of active products
+    const totalItems = await em.count(Product, { isActive: true });
+    
+    // Get paginated data
+    const products = await em.find(Product, { isActive: true }, {
+      limit,
+      offset,
+      orderBy: { name: 'ASC' } // Alphabetical order
+    });
+    
+    // Create paginated response
+    const response = PaginationHelper.createResponse(
+      products,
+      page,
+      limit,
+      totalItems,
+      'Active products found successfully'
+    );
+    
+    res.status(200).json(response);
   } catch (error: any) {
     res.status(404).json({message: error.message});
   }
@@ -259,7 +320,9 @@ async function reactivateProduct(req: Request, res: Response) {
 
 export const controller = {  
   findAll, 
+  findAllPaginated,
   findActive,
+  findActivePaginated,
   findOne,
   add,
   update,

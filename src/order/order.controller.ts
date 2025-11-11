@@ -4,6 +4,7 @@ import { orm } from '../shared/db/orm.js';
 import { User } from '../user/user.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
+import { PaginationHelper, PaginationQuery } from '../shared/types/pagination.types.js';
 
 const mailService = new MailService();
 const em = orm.em;
@@ -24,6 +25,48 @@ async function findAll(req: Request, res: Response){
       ]
     });
     res.status(200).json({message: 'Orders found successfully', data: orders});
+  } catch (error: any){
+    res.status(404).json({message: error.message});
+  }
+}
+
+async function findAllPaginated(req: Request, res: Response){
+  try{
+    // Parse pagination parameters
+    const { page, limit, offset } = PaginationHelper.validateAndNormalize(req.query as PaginationQuery);
+    
+    // Get total count
+    const totalItems = await em.count(Order, {});
+    
+    // Get paginated data
+    const orders = await em.find(Order, {}, {
+      populate: ['user'],
+      fields: [
+        '*',
+        'user.id',
+        'user.firstName',
+        'user.lastName',
+        'user.email',
+        'user.phone',
+        'user.street',
+        'user.streetNumber',
+        'user.city'
+      ],
+      limit,
+      offset,
+      orderBy: { orderDate: 'DESC' } // Most recent first
+    });
+    
+    // Create paginated response
+    const response = PaginationHelper.createResponse(
+      orders,
+      page,
+      limit,
+      totalItems,
+      'Orders found successfully'
+    );
+    
+    res.status(200).json(response);
   } catch (error: any){
     res.status(404).json({message: error.message});
   }
@@ -455,6 +498,7 @@ export {
 
 export const controller = {
   findAll,
+  findAllPaginated,
   findOne,
   create,
   update,
