@@ -5,19 +5,24 @@ import bcrypt from 'bcrypt';
 import { Order } from '../order/order.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
+import { Province } from '../province/province.entity.js';
 
 const em = orm.em.fork();
 const mailService = new MailService();
 
-async function findAll(req: Request, res: Response){
+async function findAll(req: Request, res: Response) {
   try {
+    const privilege = req.query.privilege as string; // lo recibimos como query param
     const isActiveParam = req.query.isActive;
     const searchTerm = req.query.q?.toString().trim().toLowerCase();
 
-    const filter: any = {
-      privilege: 'cliente' 
-    };
- 
+    const filter: any = {};
+
+    // Filtrar por privilegio si viene (cliente / transportista)
+    if (privilege) {
+      filter.privilege = privilege;
+    }
+
     if (isActiveParam === 'true') {
       filter.isActive = true;
     } else if (isActiveParam === 'false') {
@@ -34,11 +39,13 @@ async function findAll(req: Request, res: Response){
 
     const users = await em.find(User, filter);
     res.json({ data: users });
+
   } catch (err) {
     console.error('Error al obtener usuarios:', err);
     res.status(500).json({ message: 'Error al obtener usuarios' });
   }
-};
+}
+
 
 async function findOne(req: Request, res: Response){
   try{
@@ -166,12 +173,21 @@ async function signUp(req: Request, res: Response) {
     }
 
     // Validación de city para no-administradores
-    if (userData.privilege !== 'administrador' && !userData.city) {
+    if (userData.privilege !== 'administrador' && userData.privilege !== 'transportista'&& !userData.city) {
       return res.status(400).json({ 
         message: 'Error', 
         error: 'City is required for non-admin users' 
       });
     }
+    
+    if (userData.privilege === 'transportista') {
+      const province = await em.findOne(Province, userData.province);
+      if (!province) {
+        return res.status(400).json({ message: 'Error', error: 'Provincia inválida' });
+      }
+      userData.province = province;
+    }
+
 
     // Hash de la contraseña
     const salt = await bcrypt.genSalt(10);
