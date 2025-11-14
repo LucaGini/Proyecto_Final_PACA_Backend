@@ -68,34 +68,40 @@ async function update(req: Request, res: Response){
   try{
     const id = req.params.id;
     const existingUser = await em.findOne(User, { id });
-      if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      const newEmail = req.body.name;
-      if (newEmail !== existingUser.email) {
-        const duplicateUser = await em.findOne(User, { email: newEmail });
-        if (duplicateUser) {
-          return res.status(400).json({ message: 'Error', error: 'The new name is already used' });
-        }
-      }
-      const updatedData = req.body;
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-      if (updatedData.password && updatedData.password !== existingUser.password) {
-        const salt = await bcrypt.genSalt(10);
-        updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    const updatedData = req.body;
+
+    // 🔹 Convertir { id: '...' } en entidad Province real
+    if (updatedData.province && updatedData.province.id) {
+      const provinceEntity = await em.findOne(Province, updatedData.province.id);
+
+      if (!provinceEntity) {
+        return res.status(400).json({ message: 'Provincia inválida' });
       }
-  
-      em.assign(existingUser, updatedData);
+
+      updatedData.province = provinceEntity;
+    }
+
+    // 🔹 Hash si cambió contraseña
+    if (updatedData.password && updatedData.password !== existingUser.password) {
+      const salt = await bcrypt.genSalt(10);
+      updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    }
+
+    // 🔹 Asignar cambios
+    em.assign(existingUser, updatedData);
+
     await em.flush();
-    res
-      .status(200)
-      .json({message: 'user updated', data: existingUser});
-  }
-  catch (error: any) {
+    res.status(200).json({ message: 'user updated', data: existingUser });
+
+  } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 
 async function forceCancelOrder(order: Order) {
   for (const item of order.orderItems) {
