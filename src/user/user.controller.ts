@@ -12,13 +12,12 @@ const mailService = new MailService();
 
 async function findAll(req: Request, res: Response) {
   try {
-    const privilege = req.query.privilege as string; // lo recibimos como query param
+    const privilege = req.query.privilege as string;
     const isActiveParam = req.query.isActive;
     const searchTerm = req.query.q?.toString().trim().toLowerCase();
 
     const filter: any = {};
 
-    // Filtrar por privilegio si viene (cliente / transportista)
     if (privilege) {
       filter.privilege = privilege;
     }
@@ -37,7 +36,11 @@ async function findAll(req: Request, res: Response) {
       ];
     }
 
-    const users = await em.find(User, filter);
+    // 🔹 Agregá el populate acá
+    const users = await em.find(User, filter, {
+      populate: ['province'], // Esto hace que traiga el objeto provincia completo
+    });
+
     res.json({ data: users });
 
   } catch (err) {
@@ -45,6 +48,7 @@ async function findAll(req: Request, res: Response) {
     res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 }
+
 
 
 async function findOne(req: Request, res: Response){
