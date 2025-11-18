@@ -120,27 +120,6 @@ async function findCitiesByProvince(req: Request, res: Response){
   }
 }
 
-export async function findProvinceByPassword(req: Request, res: Response) {
-  try {
-    const { password } = req.body;
-
-    if (!password) {
-      return res.status(400).json({ message: 'Password is required' });
-    }
-    const province = await em.findOne(Province, { password });
-
-    if (!province) {
-      return res.status(403).json({ message: 'Invalid password' });
-    }
-
-    res.status(200).json({
-      message: 'Province found successfully',
-      data: { id: province.id, name: province.name },
-    });
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
-  }
-}
 
 export const controller = { 
   findAll, 
@@ -150,5 +129,4 @@ export const controller = {
   remove,
   findProvinceByName,
   findCitiesByProvince,
-  findProvinceByPassword
 };

@@ -4,10 +4,11 @@ import { blockRoleIfLogged,authenticateAdmin,authenticateClient,authenticateDriv
 
 export const orderRouter = Router();
 
+//orderRouter.get('/driver/orders', controller.getOrdersForDriver);
+orderRouter.get('/driver/orders', authenticateDriver, controller.getOrdersForDriver);
 orderRouter.put('/bulk-status', controller.bulkUpdateStatus);
 orderRouter.get('/user/email/:email', authenticateClient,controller.findOrdersByEmail);
 orderRouter.get('/number/:orderNumber', controller.findByOrderNumber);
-orderRouter.get('/in-distribution/:provinceId', authenticateDriver, controller.findInDistribution);
 orderRouter.get('/', controller.findAll);
 orderRouter.get('/:id', controller.findOne);
 orderRouter.post('/',blockRoleIfLogged, controller.create);

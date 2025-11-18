@@ -32,3 +32,19 @@ Content-Type: application/json
     "email": "luisinagutierrez2618@gmail.com" ,
     "password": "hola hola"
 }
+
+### Crear transportista
+POST http://localhost:3000/api/users
+Content-Type: application/json
+
+{
+  "email": "Pedro@driver.com",
+  "password": "Pedro12$!",
+  "privilege": "transportista",
+  "firstName": "Pedro",
+  "lastName": "Torres",
+  "phone": "3415555678",
+  "street": "Av Siempre Viva",
+  "streetNumber": "742",
+  "province": "Santa Fe"
+}

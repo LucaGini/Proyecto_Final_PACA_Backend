@@ -9,5 +9,5 @@ userRouter.put('/update-password',onlyAnonymous, controller.updatePassword);
 userRouter.get('/by-email', controller.findUserByEmail);
 userRouter.delete('/:id', controller.softDelete);
 userRouter.get('/:id', controller.findOne);
-userRouter.put('/:id',authenticateClient, controller.update);
-userRouter.post('/',onlyAnonymous, controller.signUp);
+userRouter.put('/:id', controller.update);
+userRouter.post('/', controller.signUp);

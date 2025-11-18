@@ -20,7 +20,6 @@ import { fileURLToPath } from 'url';
 import { orderRouter } from './order/order.routes.js';
 import dotenv from 'dotenv';
 import { createDefaultAdmin } from './user/admin.seed.js';
-import { createDefaultDriver } from './user/driver.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import session from 'express-session';
 //import passport from './auth/passport.config.js';
@@ -90,5 +89,4 @@ const PORT = process.env.PORT || 0;
 app.listen(PORT, async () => {
   console.log('Server running on https://localhost:3000');
   await createDefaultAdmin();
-  await createDefaultDriver();
 });
