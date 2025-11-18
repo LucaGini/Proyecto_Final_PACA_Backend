@@ -5,11 +5,14 @@ import { authenticateAdmin } from '../auth/authMiddleware.js';
 export const dashboardRouter = Router();
 
 // Ventas
+dashboardRouter.get('/total-revenue', authenticateAdmin, controller.getTotalRevenue);
 dashboardRouter.get('/sales-by-province', authenticateAdmin, controller.getSalesByProvince);
 dashboardRouter.get('/sales-by-city', authenticateAdmin, controller.getSalesByCity);
 dashboardRouter.get('/sales-by-category', authenticateAdmin, controller.getSalesByCategory);
 dashboardRouter.get('/products-by-category', authenticateAdmin, controller.getProductsByCategory);
 dashboardRouter.get('/earnings-over-time', authenticateAdmin, controller.getRevenueOverTime);
+
+
 
 // Productos
 dashboardRouter.get('/top-products', authenticateAdmin, controller.getTopProducts);
