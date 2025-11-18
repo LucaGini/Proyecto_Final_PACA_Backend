@@ -12,8 +12,6 @@ dashboardRouter.get('/sales-by-category', authenticateAdmin, controller.getSales
 dashboardRouter.get('/products-by-category', authenticateAdmin, controller.getProductsByCategory);
 dashboardRouter.get('/earnings-over-time', authenticateAdmin, controller.getRevenueOverTime);
 
-
-
 // Productos
 dashboardRouter.get('/top-products', authenticateAdmin, controller.getTopProducts);
 dashboardRouter.get('/worst-products', authenticateAdmin, controller.getWorstProducts);
@@ -24,5 +22,6 @@ dashboardRouter.get('/worst-customers', authenticateAdmin, controller.getTopCanc
 
 // Órdenes
 dashboardRouter.get('/orders-by-status', authenticateAdmin, controller.getOrderStatusDistribution);
-
+dashboardRouter.get('/orders-count-by-day', authenticateAdmin, controller.getOrdersCountByDay);
+dashboardRouter.get('/order-status-by-day', authenticateAdmin, controller.getOrderStatusByDay);
 
