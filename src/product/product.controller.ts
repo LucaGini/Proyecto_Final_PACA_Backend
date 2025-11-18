@@ -56,7 +56,7 @@ async function add(req: Request, res: Response) {
     const product = em.create(Product, {
       name,
       description,
-      price: parseFloat(price),
+      price: parseFloat(parseFloat(price).toFixed(2)),
       stock: parseInt(stock),
       minimumStock: parseInt(minimumStock),
       mailSent: false,
@@ -108,7 +108,7 @@ async function update(req: Request, res: Response){
     const updatedData: any = {
       name: req.body.name,
       description: req.body.description,
-      price: parseFloat(req.body.price),
+      price: parseFloat(parseFloat(req.body.price).toFixed(2)),
       stock: parseInt(req.body.stock),
       minimumStock: parseInt(req.body.minimumStock),
       isActive: req.body.isActive === 'true' || req.body.isActive === true,
