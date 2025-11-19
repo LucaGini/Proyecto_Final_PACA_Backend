@@ -22,6 +22,3 @@ dashboardRouter.get('/worst-customers', authenticateAdmin, controller.getTopCanc
 
 // Órdenes
 dashboardRouter.get('/orders-by-status', authenticateAdmin, controller.getOrderStatusDistribution);
-dashboardRouter.get('/orders-count-by-day', authenticateAdmin, controller.getOrdersCountByDay);
-dashboardRouter.get('/order-status-by-day', authenticateAdmin, controller.getOrderStatusByDay);
-

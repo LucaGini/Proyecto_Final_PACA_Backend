@@ -41,8 +41,6 @@ function buildOrderFilters(req: Request, excludeCancelled: boolean = true, onlyS
   // Rango de fechas UTC
   const dateRange = getDateRangeUTC(startDate as string, endDate as string);
   if (dateRange) filters.orderDate = dateRange;
-
-  console.log('Filters:', filters);
   return filters;
 }
 
@@ -367,15 +365,10 @@ async function getTotalRevenue(req: Request, res: Response) {
     const filters = buildOrderFilters(req, true, 'completed'); 
 
     const orders = await em.find(Order, filters);
-    console.log("START:", req.query.start);
-    console.log("END:", req.query.end);
-
-
     let totalRevenue = 0;
     for (const order of orders) {
       totalRevenue += Number(order.total) || 0;
     }
-    console.log('Total Revenue en el back:', totalRevenue);
 
     res.status(200).json({
       message: 'Total revenue del período',
@@ -388,97 +381,6 @@ async function getTotalRevenue(req: Request, res: Response) {
     });
   }
 }
-async function getOrdersCountByDay(req: Request, res: Response) {
-  try {
-    const { startDate, endDate } = req.query;
-    const dateRange = getDateRangeUTC(startDate as string, endDate as string);
-
-    if (!dateRange) {
-      return res.status(400).json({ message: 'startDate y endDate son requeridos' });
-    }
-
-    // Traemos solo la fecha y el estado (no necesitamos items)
-    const orders = await em.find(Order, {
-      orderDate: dateRange
-    }, {
-      fields: ['orderDate'],   // selecciona mínimo
-      orderBy: { orderDate: 'ASC' }
-    });
-
-    // Agrupar por día
-    const countByDay: Record<string, number> = {};
-    for (const order of orders) {
-      if (!order.orderDate) continue; 
-      const day = order.orderDate.toISOString().split('T')[0];
-      countByDay[day] = (countByDay[day] || 0) + 1;
-    }
-
-    // Convertir a array ordenada
-    const result = Object.entries(countByDay)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    res.status(200).json(result);
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ message: 'Error interno', error: error.message });
-  }
-}
-
-async function getOrderStatusByDay(req: Request, res: Response) {
-  try {
-    const { startDate, endDate } = req.query;
-    const dateRange = getDateRangeUTC(startDate as string, endDate as string);
-
-    if (!dateRange) {
-      return res.status(400).json({ message: 'startDate y endDate son requeridos' });
-    }
-
-    // Traemos fecha y estado
-    const orders = await em.find(Order, {
-      orderDate: dateRange
-    }, {
-      fields: ['orderDate', 'status'],
-      orderBy: { orderDate: 'ASC' }
-    });
-
-    // Agrupar por día
-    const map: Record<string, any> = {};
-
-    for (const order of orders) {
-      if (!order.orderDate) continue; 
-      const day = order.orderDate.toISOString().split('T')[0];
-
-      if (!map[day]) {
-        map[day] = {
-          date: day,
-          pending: 0,
-          completed: 0,
-          cancelled: 0,
-          rescheduled: 0,
-        };
-      }
-
-      const state = order.status as string;
-
-      if (state === 'pending') map[day].pending++;
-      else if (state === 'completed') map[day].completed++;
-      else if (state === 'cancelled') map[day].cancelled++;
-      else if (state === 'rescheduled') map[day].rescheduled++;
-    }
-
-    const result = Object.values(map).sort(
-      (a: any, b: any) => a.date.localeCompare(b.date)
-    );
-
-    res.status(200).json(result);
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ message: 'Error interno', error: error.message });
-  }
-}
-
-
 
 export const controller = {
   getSalesByProvince,
@@ -492,6 +394,4 @@ export const controller = {
   getOrderStatusDistribution,
   getRevenueOverTime,
   getTotalRevenue,
-  getOrdersCountByDay,
-  getOrderStatusByDay
 };
