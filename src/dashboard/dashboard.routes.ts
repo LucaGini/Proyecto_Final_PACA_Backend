@@ -5,6 +5,7 @@ import { authenticateAdmin } from '../auth/authMiddleware.js';
 export const dashboardRouter = Router();
 
 // Ventas
+dashboardRouter.get('/total-revenue', authenticateAdmin, controller.getTotalRevenue);
 dashboardRouter.get('/sales-by-province', authenticateAdmin, controller.getSalesByProvince);
 dashboardRouter.get('/sales-by-city', authenticateAdmin, controller.getSalesByCity);
 dashboardRouter.get('/sales-by-category', authenticateAdmin, controller.getSalesByCategory);
@@ -21,5 +22,3 @@ dashboardRouter.get('/worst-customers', authenticateAdmin, controller.getTopCanc
 
 // Órdenes
 dashboardRouter.get('/orders-by-status', authenticateAdmin, controller.getOrderStatusDistribution);
-
-

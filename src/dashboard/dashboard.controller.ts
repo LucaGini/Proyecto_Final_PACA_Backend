@@ -41,8 +41,6 @@ function buildOrderFilters(req: Request, excludeCancelled: boolean = true, onlyS
   // Rango de fechas UTC
   const dateRange = getDateRangeUTC(startDate as string, endDate as string);
   if (dateRange) filters.orderDate = dateRange;
-
-  console.log('Filters:', filters);
   return filters;
 }
 
@@ -361,6 +359,29 @@ async function getRevenueOverTime(req: Request, res: Response) {
   }
 }
 
+async function getTotalRevenue(req: Request, res: Response) {
+  try {
+    // Usamos el mismo filtro que para ingresos, pero SUMA GENERAL
+    const filters = buildOrderFilters(req, true, 'completed'); 
+
+    const orders = await em.find(Order, filters);
+    let totalRevenue = 0;
+    for (const order of orders) {
+      totalRevenue += Number(order.total) || 0;
+    }
+
+    res.status(200).json({
+      message: 'Total revenue del período',
+      data: totalRevenue
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
 export const controller = {
   getSalesByProvince,
   getSalesByCity,
@@ -372,4 +393,5 @@ export const controller = {
   getTopCancelledCustomers,
   getOrderStatusDistribution,
   getRevenueOverTime,
+  getTotalRevenue,
 };
