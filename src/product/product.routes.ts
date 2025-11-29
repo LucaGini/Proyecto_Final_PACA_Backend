@@ -5,8 +5,9 @@ import { authenticateAdmin } from "../auth/authMiddleware.js";
 
 export const productRouter = Router();
 
-
+productRouter.get('/active-products/paginated', controller.findActivePaginated); // New paginated endpoint for active products
 productRouter.get('/active-products', controller.findActive);
+productRouter.get('/paginated', controller.findAllPaginated); // New paginated endpoint for all products
 productRouter.get('/search', controller.search);
 productRouter.get('/:id', controller.findOne);
 productRouter.put('/:id/reactivate', authenticateAdmin,controller.reactivateProduct);

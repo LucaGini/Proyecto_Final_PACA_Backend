@@ -9,6 +9,7 @@ orderRouter.get('/driver/orders', authenticateDriver, controller.getOrdersForDri
 orderRouter.put('/bulk-status', controller.bulkUpdateStatus);
 orderRouter.get('/user/email/:email', authenticateClient,controller.findOrdersByEmail);
 orderRouter.get('/number/:orderNumber', controller.findByOrderNumber);
+orderRouter.get('/paginated', controller.findAllPaginated); // New paginated endpoint
 orderRouter.get('/', controller.findAll);
 orderRouter.get('/:id', controller.findOne);
 orderRouter.post('/',blockRoleIfLogged, controller.create);

@@ -4,6 +4,7 @@ import { authenticateClient, onlyAnonymous } from "../auth/authMiddleware.js";
 
 export const userRouter = Router();
 
+userRouter.get('/paginated', controller.findAllPaginated); // New paginated endpoint
 userRouter.get('/', controller.findAll);
 userRouter.put('/update-password',onlyAnonymous, controller.updatePassword);
 userRouter.get('/by-email', controller.findUserByEmail);
