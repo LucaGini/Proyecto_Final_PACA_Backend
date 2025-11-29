@@ -462,18 +462,22 @@ async function bulkUpdateStatus(req: Request, res: Response) {
   }
 }
 
-export async function findInDistribution(req: Request, res: Response) {
-  try {
-    const { provinceId } = req.params;
+// order.controller.ts
 
-    if (!provinceId) {
-      return res.status(400).json({ message: 'provinceId is required' });
+async function getOrdersForDriver(req: Request, res: Response) {
+  try {
+    const loggedUser = (req as any).user;
+    const driver = await em.findOne(User, { email: loggedUser.email }, { populate: ['province'] });
+    if (!driver || !driver.province) {
+      return res.status(404).json({ message: 'No se encontró la provincia del transportista' });
     }
+
+    const provinceId = driver.province.id;
 
     const orders = await em.find(
       Order,
       { status: 'in distribution' },
-      { populate: ['user', 'user.city', 'user.city.province'] }
+      { populate: ['user.city.province', 'user'] }
     );
 
     const filteredOrders = orders.filter(
@@ -481,11 +485,11 @@ export async function findInDistribution(req: Request, res: Response) {
     );
 
     res.status(200).json({
-      message: 'Orders in distribution found successfully',
+      message: 'Órdenes obtenidas correctamente para el transportista',
       data: filteredOrders,
     });
   } catch (error: any) {
-    console.error(error);
+    console.error('Error al obtener órdenes del transportista:', error);
     res.status(500).json({ message: error.message });
   }
 }
@@ -506,5 +510,5 @@ export const controller = {
   findOrdersByEmail,
   findByOrderNumber,
   bulkUpdateStatus,
-  findInDistribution
+  getOrdersForDriver
 }

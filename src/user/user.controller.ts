@@ -6,19 +6,23 @@ import { Order } from '../order/order.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
 import { PaginationHelper, PaginationQuery } from '../shared/types/pagination.types.js';
+import { Province } from '../province/province.entity.js';
 
 const em = orm.em.fork();
 const mailService = new MailService();
 
-async function findAll(req: Request, res: Response){
+async function findAll(req: Request, res: Response) {
   try {
+    const privilege = req.query.privilege as string;
     const isActiveParam = req.query.isActive;
     const searchTerm = req.query.q?.toString().trim().toLowerCase();
 
-    const filter: any = {
-      privilege: 'cliente' 
-    };
- 
+    const filter: any = {};
+
+    if (privilege) {
+      filter.privilege = privilege;
+    }
+
     if (isActiveParam === 'true') {
       filter.isActive = true;
     } else if (isActiveParam === 'false') {
@@ -33,13 +37,20 @@ async function findAll(req: Request, res: Response){
       ];
     }
 
-    const users = await em.find(User, filter);
+    // 🔹 Agregá el populate acá
+    const users = await em.find(User, filter, {
+      populate: ['province'], // Esto hace que traiga el objeto provincia completo
+    });
+
     res.json({ data: users });
+
   } catch (err) {
     console.error('Error al obtener usuarios:', err);
     res.status(500).json({ message: 'Error al obtener usuarios' });
   }
-};
+}
+
+
 
 async function findAllPaginated(req: Request, res: Response){
   try {
@@ -111,34 +122,40 @@ async function update(req: Request, res: Response){
   try{
     const id = req.params.id;
     const existingUser = await em.findOne(User, { id });
-      if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      const newEmail = req.body.name;
-      if (newEmail !== existingUser.email) {
-        const duplicateUser = await em.findOne(User, { email: newEmail });
-        if (duplicateUser) {
-          return res.status(400).json({ message: 'Error', error: 'The new name is already used' });
-        }
-      }
-      const updatedData = req.body;
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-      if (updatedData.password && updatedData.password !== existingUser.password) {
-        const salt = await bcrypt.genSalt(10);
-        updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    const updatedData = req.body;
+
+    // 🔹 Convertir { id: '...' } en entidad Province real
+    if (updatedData.province && updatedData.province.id) {
+      const provinceEntity = await em.findOne(Province, updatedData.province.id);
+
+      if (!provinceEntity) {
+        return res.status(400).json({ message: 'Provincia inválida' });
       }
-  
-      em.assign(existingUser, updatedData);
+
+      updatedData.province = provinceEntity;
+    }
+
+    // 🔹 Hash si cambió contraseña
+    if (updatedData.password && updatedData.password !== existingUser.password) {
+      const salt = await bcrypt.genSalt(10);
+      updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    }
+
+    // 🔹 Asignar cambios
+    em.assign(existingUser, updatedData);
+
     await em.flush();
-    res
-      .status(200)
-      .json({message: 'user updated', data: existingUser});
-  }
-  catch (error: any) {
+    res.status(200).json({ message: 'user updated', data: existingUser });
+
+  } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 
 async function forceCancelOrder(order: Order) {
   for (const item of order.orderItems) {
@@ -220,12 +237,21 @@ async function signUp(req: Request, res: Response) {
     }
 
     // Validación de city para no-administradores
-    if (userData.privilege !== 'administrador' && !userData.city) {
+    if (userData.privilege !== 'administrador' && userData.privilege !== 'transportista'&& !userData.city) {
       return res.status(400).json({ 
         message: 'Error', 
         error: 'City is required for non-admin users' 
       });
     }
+    
+    if (userData.privilege === 'transportista') {
+      const province = await em.findOne(Province, userData.province);
+      if (!province) {
+        return res.status(400).json({ message: 'Error', error: 'Provincia inválida' });
+      }
+      userData.province = province;
+    }
+
 
     // Hash de la contraseña
     const salt = await bcrypt.genSalt(10);
