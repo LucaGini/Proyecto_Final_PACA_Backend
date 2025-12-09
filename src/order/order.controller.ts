@@ -494,6 +494,65 @@ async function getOrdersForDriver(req: Request, res: Response) {
   }
 }
 
+async function findOrdersByEmailPaginated(req: Request, res: Response) {
+  try {
+    const { email } = req.params;
+
+    // Validación del usuario
+    const user = await em.findOne(User, { email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Parsear paginación
+    const { page, limit, offset } = PaginationHelper.validateAndNormalize(
+      req.query as PaginationQuery
+    );
+
+    // Contar total de órdenes
+    const totalItems = await em.count(Order, { user: user.id });
+
+    // Obtener órdenes paginadas
+    const orders = await em.find(
+      Order,
+      { user: user.id },
+      {
+        populate: ['user'],
+        fields: [
+          '*',
+          'user.id',
+          'user.firstName',
+          'user.lastName',
+          'user.email',
+          'user.phone',
+          'user.street',
+          'user.streetNumber',
+          'user.city'
+        ],
+        limit,
+        offset,
+        orderBy: { orderDate: 'DESC' }
+      }
+    );
+
+    // Estructura paginada estándar
+    const response = PaginationHelper.createResponse(
+      orders,
+      page,
+      limit,
+      totalItems,
+      'Orders found successfully'
+    );
+
+    res.status(200).json(response);
+
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 
 export {
   rescheduledOrder,
@@ -508,6 +567,7 @@ export const controller = {
   update,
   remove,
   findOrdersByEmail,
+  findOrdersByEmailPaginated,
   findByOrderNumber,
   bulkUpdateStatus,
   getOrdersForDriver
