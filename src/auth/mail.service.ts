@@ -486,7 +486,7 @@ async sendOrderInDistributionEmail(to: string, orderNumber: string) {
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0; font-style: italic; color: #666; text-align: center;">
-              "Gracias por confiar en PACA. ¡Esperamos que resivas tu compra!"
+              "Gracias por confiar en PACA. ¡Esperamos que recibas tu compra!"
             </p>
           </div>
           
