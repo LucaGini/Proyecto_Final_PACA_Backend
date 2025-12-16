@@ -320,7 +320,22 @@ async function rescheduledOrder(order: Order) {
     order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
     if (order.rescheduleQuantity > 2) {
       console.log("se cancela")
-      return await cancelOrder(order);
+      order.updatedDate = new Date();
+      order.status = 'cancelled';
+      for (const item of order.orderItems) {
+        const product = await em.findOne(Product, { id: item.productId });
+        if (product) {
+          product.stock += item.quantity;
+          await em.persistAndFlush(product);
+        }
+      }
+
+      if (order.user && order.user._id) {
+        const user = await em.findOne(User, { id: order.user._id.toString() });
+        if (user?.email) {
+          await mailService.sendOrderCancellationEmail(user.email, order.orderNumber);
+        }
+      }
     } else {
       console.log("se reenvia")
       order.status = 'rescheduled';
