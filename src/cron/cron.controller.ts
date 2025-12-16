@@ -16,13 +16,11 @@ export async function createCron(req: Request, res: Response) {
     if (currentCronJob) {
       currentCronJob.stop();
       currentCronJob = null;
-      console.log('🛑🛑🛑 Cron anterior detenido.');
     }
     currentCronJob = cron.schedule(expression, async () => {
-      console.log(`Ejecutando job automático (${expression})...`);
+      //console.log(`Ejecutando job automático (${expression})...`);
       try {
         await generateWeeklyRoutes();
-        console.log('Rutas generadas exitosamente mediante cron.');
       } catch (err) {
         console.error('Error ejecutando generateWeeklyRoutes:', err);
       }

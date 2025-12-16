@@ -40,8 +40,6 @@ function logChatbotActivity(req: Request, endpoint: string, responseTime: number
   if (auditLogs.length > MAX_LOGS) {
     auditLogs.splice(0, auditLogs.length - MAX_LOGS);
   }
-
-  console.log(`[CHATBOT-API] ${endpoint} - ${responseTime}ms`, query ? `- Query: ${query}` : '');
 }
 
 /**

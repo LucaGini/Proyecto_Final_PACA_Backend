@@ -181,8 +181,6 @@ async function update(req: Request, res: Response){
     if (req.body.image) {
       updatedData.image = req.body.image;
     }
-
-    console.log("est o no activo", updatedData.isActive);
     if(!updatedData.isActive){
       return res.status(409).json({ message: 'Error', error: 'Cannot update an inactive product' });
     }
@@ -256,7 +254,6 @@ async function search(req: Request, res: Response) {
     const searchQuery = String(query).toLowerCase();
     const products = await em.find(Product, { isActive: true }, { populate: ['category'] });
     const filteredProducts = products.filter(product => {
-      console.log("Producto activo:", product.isActive, "Nombre:", product.name);
       return product.name.toLowerCase().includes(searchQuery) || product.category.name.toLowerCase().includes(searchQuery);
 });
 
