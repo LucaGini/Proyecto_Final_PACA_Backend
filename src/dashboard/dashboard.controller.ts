@@ -11,19 +11,11 @@ const em = orm.em;
 function getDateRangeUTC(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return null;
 
-  // Fechas locales
-  const startLocal = new Date(startDate);
-  startLocal.setHours(0, 0, 0, 0);
+  const start = new Date(startDate + 'T00:00:00.000Z');
+  const end   = new Date(endDate   + 'T23:59:59.999Z');
 
-  const endLocal = new Date(endDate);
-  endLocal.setHours(23, 59, 59, 999);
-
-  // Convertir a UTC restando el offset local
-  const startUTC = new Date(startLocal.getTime() - startLocal.getTimezoneOffset() * 60000);
-  const endUTC = new Date(endLocal.getTime() - endLocal.getTimezoneOffset() * 60000);
-  return { $gte: startUTC, $lte: endUTC };
+  return { $gte: start, $lte: end };
 }
-
 
 
 // --- Filtros generales de órdenes ---
