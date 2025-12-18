@@ -22,7 +22,6 @@ export const createDefaultAdmin = async () => {
             });
 
             await em.persistAndFlush(adminUser);
-            console.log('Default admin user created successfully');
         } else {
             console.log('Admin user already exists');
         }

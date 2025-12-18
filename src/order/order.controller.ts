@@ -149,12 +149,8 @@ async function create(req: Request, res: Response){
       })
     );
     
-
-    console.log("Total antes de redondear:", total);
-
     const roundedTotal = Math.round((parseFloat(total) + Number.EPSILON) * 100) / 100;
-    console.log("Total después de redondear:", roundedTotal);
-
+  
     const order = em.create(Order, {
       orderNumber,
       status: 'pending',
@@ -196,7 +192,6 @@ async function create(req: Request, res: Response){
         }
       );
       
-      console.log('Order confirmation email sent to:', user.email);
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
       // No fallar la creación de la orden si el email falla
@@ -252,7 +247,6 @@ async function update(req: Request, res: Response) {
 
       const newTotal = orderItems.reduce((acc: number, item: any) => acc + item.subtotal, 0);
       order.total = Math.round((newTotal + Number.EPSILON) * 100) / 100;
-      console.log("New total after update:", order.total);
     }
 
     order.updatedDate = new Date();
@@ -315,17 +309,27 @@ async function completeOrder(order: Order) {
 
 async function rescheduledOrder(order: Order) {
   try {
-    console.log(`Rescheduling order ${order.id}, current reschedule count: ${order.rescheduleQuantity}`);
     order.updatedDate = new Date();
     order.rescheduleQuantity = (order.rescheduleQuantity || 0) + 1;
     if (order.rescheduleQuantity > 2) {
-      console.log("se cancela")
-      return await cancelOrder(order);
+      order.updatedDate = new Date();
+      order.status = 'cancelled';
+      for (const item of order.orderItems) {
+        const product = await em.findOne(Product, { id: item.productId });
+        if (product) {
+          product.stock += item.quantity;
+          await em.persistAndFlush(product);
+        }
+      }
+
+      if (order.user && order.user._id) {
+        const user = await em.findOne(User, { id: order.user._id.toString() });
+        if (user?.email) {
+          await mailService.sendOrderCancellationEmail(user.email, order.orderNumber);
+        }
+      }
     } else {
-      console.log("se reenvia")
       order.status = 'rescheduled';
-      console.log(`Order ${order.id} rescheduled, new reschedule count: ${order.rescheduleQuantity}`);
-      console.log('Order after update:', order.status);
       if (order.user && order.user._id) {
         const user = await em.findOne(User, { id: order.user._id.toString() });
         if (user?.email) {
@@ -431,8 +435,6 @@ async function bulkUpdateStatus(req: Request, res: Response) {
     }
 
     for (const order of orders) {
-      console.log(`Processing bulk update for order ${order.id} → ${status}`);
-
       if (status === 'completed') {
         const completeResult = await completeOrder(order);
         if (!completeResult.success) {

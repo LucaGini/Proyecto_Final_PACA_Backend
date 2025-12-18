@@ -116,8 +116,6 @@ export const verifyGoogleToken = async (req: Request, res: Response) => {
         user.googleId = googleUser.googleId;
         await em.persistAndFlush(user);
       }
-      
-      console.log(`Usuario existente autenticado: ${user.email}`);
     } else {
       // Usuario no existe - CASO SIGN UP
       
@@ -141,9 +139,6 @@ export const verifyGoogleToken = async (req: Request, res: Response) => {
       });
 
       await em.persistAndFlush(user);
-      console.log(`Nuevo usuario registrado con Google: ${user.email}`);
-
-      
       try {
         await mailService.sendWelcomeEmail(user.email, user.firstName);
       } catch (mailError) {
