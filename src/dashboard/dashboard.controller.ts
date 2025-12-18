@@ -11,11 +11,28 @@ const em = orm.em;
 function getDateRangeUTC(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return null;
 
-  const start = new Date(startDate + 'T00:00:00.000Z');
-  const end   = new Date(endDate   + 'T23:59:59.999Z');
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
 
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  console.log(
+    'Rango local:',
+    start.toString(),
+    'a',
+    end.toString()
+  );
+
+  console.log(
+    'Rango UTC:',
+    start.toISOString(),
+    'a',
+    end.toISOString()
+  );
   return { $gte: start, $lte: end };
 }
+
 
 
 // --- Filtros generales de órdenes ---
@@ -339,8 +356,8 @@ async function getRevenueOverTime(req: Request, res: Response) {
 
     const revenueByDate: Record<string, number> = {};
     for (const order of orders) {
-      if (!order.orderDate) continue; 
-      const date = order.orderDate.toISOString().split('T')[0];
+      if (!order.updatedDate) continue; 
+      const date = order.updatedDate.toISOString().split('T')[0];
       revenueByDate[date] = (revenueByDate[date] || 0) + order.total;
     }
 
