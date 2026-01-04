@@ -4,14 +4,17 @@ import { orm } from '../shared/db/orm.js';
 import { User } from '../user/user.entity.js';
 import { Product } from '../product/product.entity.js';
 import { MailService } from '../auth/mail.service.js';
+import { InvoiceService } from './invoice.service.js';
 import { PaginationHelper, PaginationQuery } from '../shared/types/pagination.types.js';
 
 const mailService = new MailService();
+const invoiceService = new InvoiceService();
 const em = orm.em;
 
-async function findAll(req: Request, res: Response){
-  try{
-    const orders = await em.find(Order, {}, {populate: ['user'],
+async function findAll(req: Request, res: Response) {
+  try {
+    const orders = await em.find(Order, {}, {
+      populate: ['user'],
       fields: [
         '*',
         'user.id',
@@ -24,20 +27,20 @@ async function findAll(req: Request, res: Response){
         'user.city'
       ]
     });
-    res.status(200).json({message: 'Orders found successfully', data: orders});
-  } catch (error: any){
-    res.status(404).json({message: error.message});
+    res.status(200).json({ message: 'Orders found successfully', data: orders });
+  } catch (error: any) {
+    res.status(404).json({ message: error.message });
   }
 }
 
-async function findAllPaginated(req: Request, res: Response){
-  try{
+async function findAllPaginated(req: Request, res: Response) {
+  try {
     // Parse pagination parameters
     const { page, limit, offset } = PaginationHelper.validateAndNormalize(req.query as PaginationQuery);
-    
+
     // Get total count
     const totalItems = await em.count(Order, {});
-    
+
     // Get paginated data
     const orders = await em.find(Order, {}, {
       populate: ['user'],
@@ -56,7 +59,7 @@ async function findAllPaginated(req: Request, res: Response){
       offset,
       orderBy: { orderDate: 'DESC' } // Most recent first
     });
-    
+
     // Create paginated response
     const response = PaginationHelper.createResponse(
       orders,
@@ -65,16 +68,17 @@ async function findAllPaginated(req: Request, res: Response){
       totalItems,
       'Orders found successfully'
     );
-    
+
     res.status(200).json(response);
-  } catch (error: any){
-    res.status(404).json({message: error.message});
+  } catch (error: any) {
+    res.status(404).json({ message: error.message });
   }
 }
 
-async function findOne(req: Request, res: Response){
-  try{
-    const order = await em.findOneOrFail(Order, {id: req.params.id}, {populate: ['user'],
+async function findOne(req: Request, res: Response) {
+  try {
+    const order = await em.findOneOrFail(Order, { id: req.params.id }, {
+      populate: ['user'],
       fields: [
         '*',
         'user.id',
@@ -87,58 +91,58 @@ async function findOne(req: Request, res: Response){
         'user.city'
       ]
     });
-    res.status(200).json({message: 'Order found successfully', data: order});
-  } catch (error: any){
-    res.status(404).json({message: 'Order not found'});
+    res.status(200).json({ message: 'Order found successfully', data: order });
+  } catch (error: any) {
+    res.status(404).json({ message: 'Order not found' });
   }
 }
 
-async function create(req: Request, res: Response){
-  try{
-    const {userId, orderItems, total} = req.body;
+async function create(req: Request, res: Response) {
+  try {
+    const { userId, orderItems, total } = req.body;
 
-    const user = await em.findOneOrFail(User, {id: userId}, {populate: ['city']});
+    const user = await em.findOneOrFail(User, { id: userId }, { populate: ['city'] });
 
     const year = new Date().getFullYear();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    
+
     const allOrders = await em.find(Order, {}, {
       orderBy: { orderNumber: 'DESC' },
       fields: ['orderNumber'],
       limit: 1
     });
-    
+
     const lastOrder = allOrders.length > 0 ? allOrders[0] : null;
-    
+
     let sequentialNumber = 1;
-    
+
     if (lastOrder?.orderNumber) {
       const currentYearMonth = `${year}${month}`;
       const lastOrderYearMonth = lastOrder.orderNumber.substring(0, 6);
-      
+
       if (lastOrderYearMonth === currentYearMonth) {
         const lastSequential = parseInt(lastOrder.orderNumber.substring(6));
         sequentialNumber = lastSequential + 1;
       }
     }
-    
+
     // Formato: YYYYMM + número secuencial (6 dígitos)
     const orderNumber = `${year}${month}${String(sequentialNumber).padStart(6, '0')}`;
 
     const orderItemsWithProduct = await Promise.all( /// DESDE ACÁ HASTA EL CREATE, ES PARA LA ACTUALIZACIÓN DEL STOCK 
-      orderItems.map(async (item: any) => { 
+      orderItems.map(async (item: any) => {
         const product = await em.findOneOrFail(Product, { id: item.productId });
 
-         if (!product.isActive) {
+        if (!product.isActive) {
           const error = new Error(`El producto "${product.name}" ya no se encuentra a la venta.`);
           (error as any).statusCode = 409; // o algún código que uses para conflicto
           throw error;
         }
-        
+
         if (product.stock < item.quantity) { // con el verifyStock ya nos aceguramis de que no entre acá, quiza se pueda sacar 
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
-        
+
         product.stock -= item.quantity;
         return {
           productId: product.id,
@@ -148,9 +152,9 @@ async function create(req: Request, res: Response){
         };
       })
     );
-    
+
     const roundedTotal = Math.round((parseFloat(total) + Number.EPSILON) * 100) / 100;
-  
+
     const order = em.create(Order, {
       orderNumber,
       status: 'pending',
@@ -191,15 +195,15 @@ async function create(req: Request, res: Response){
           citySurcharge: user.city?.surcharge || 0
         }
       );
-      
+
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
       // No fallar la creación de la orden si el email falla
     }
 
-    res.status(201).json({message: 'Order created successfully', data: order});
-  } catch (error: any){
-    res.status(404).json({message: error.message});
+    res.status(201).json({ message: 'Order created successfully', data: order });
+  } catch (error: any) {
+    res.status(404).json({ message: error.message });
   }
 }
 
@@ -235,7 +239,7 @@ async function update(req: Request, res: Response) {
         return res.status(400).json({ message: rescheduledResult.message });
       }
     }
-  
+
     //if (status) order.status = status;
     if (orderItems) {
       order.orderItems = orderItems.map((item: any) => ({
@@ -293,9 +297,24 @@ async function completeOrder(order: Order) {
     order.updatedDate = new Date();
     order.status = 'completed';
     if (order.user && order.user._id) {
-      const user = await em.findOne(User, { id: order.user._id.toString() });
+      const user = await em.findOne(User, { id: order.user._id.toString() }, { populate: ['city'] });
       if (user?.email) {
-        await mailService.sendOrderCompletionEmail(user.email, order.orderNumber);
+        try {
+          const itemsWithNames = await Promise.all(order.orderItems.map(async (item: any) => {
+            const product = await em.findOne(Product, { id: item.productId });
+            return {
+              ...item,
+              productName: product?.name || 'Producto'
+            };
+          }));
+
+          const invoiceBuffer = await invoiceService.generateInvoice(order, itemsWithNames, user.city?.name, user.city?.surcharge);
+          await mailService.sendOrderCompletionEmail(user.email, order.orderNumber, invoiceBuffer);
+        } catch (error) {
+          console.error('Error generating invoice or sending email:', error);
+          // Fallback email without invoice? Or just log.
+          await mailService.sendOrderCompletionEmail(user.email, order.orderNumber);
+        }
       }
     }
 
@@ -366,13 +385,13 @@ async function inDistributionOrder(order: Order) {
 }
 
 
-async function remove(req: Request, res: Response){
-  try{
-    const order = await em.findOneOrFail(Order, {id: req.params.id});
+async function remove(req: Request, res: Response) {
+  try {
+    const order = await em.findOneOrFail(Order, { id: req.params.id });
     await em.removeAndFlush(order);
-    res.status(200).json({message: 'Order deleted successfully', data: order});
-  } catch (error: any){
-    res.status(404).json({message: 'Order not found'});
+    res.status(200).json({ message: 'Order deleted successfully', data: order });
+  } catch (error: any) {
+    res.status(404).json({ message: 'Order not found' });
   }
 }
 
@@ -380,7 +399,7 @@ async function findOrdersByEmail(req: Request, res: Response) {
   try {
     const userEmail = req.params.email;
     const user = await em.findOne(User, { email: userEmail });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -389,7 +408,7 @@ async function findOrdersByEmail(req: Request, res: Response) {
       populate: ['orderItems'],
       fields: ['*']
     });
-    
+
     res.status(200).json({ message: 'Orders found successfully', data: orders });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -413,7 +432,7 @@ async function findByOrderNumber(req: Request, res: Response) {
         'user.city'
       ]
     });
-    
+
     res.status(200).json({ message: 'Order found successfully', data: order });
   } catch (error: any) {
     res.status(404).json({ message: 'Order not found' });

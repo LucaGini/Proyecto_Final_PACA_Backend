@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import {config} from 'dotenv'
+import { config } from 'dotenv'
 
 export class MailService {
   private transporter;
@@ -80,7 +80,7 @@ export class MailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendOrderRescheduleEmail(to: string, orderNumber: string, rescheduleQuantity:Number) {
+  async sendOrderRescheduleEmail(to: string, orderNumber: string, rescheduleQuantity: Number) {
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: to,
@@ -126,8 +126,8 @@ export class MailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendOrderCompletionEmail(to: string, orderNumber: string) {
-    const mailOptions = {
+  async sendOrderCompletionEmail(to: string, orderNumber: string, invoiceBuffer?: Buffer) {
+    const mailOptions: nodemailer.SendMailOptions = {
       from: process.env.MAIL_USER,
       to: to,
       subject: '¡Tu orden ha sido completada!',
@@ -150,6 +150,10 @@ export class MailService {
           </div>
           
           <p style="font-size: 16px; line-height: 1.6; color: #555;">
+            Adjunto encontrarás la factura de tu compra.
+          </p>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
             Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.
           </p>
           
@@ -160,6 +164,15 @@ export class MailService {
         </div>
       `
     };
+
+    if (invoiceBuffer) {
+      mailOptions.attachments = [
+        {
+          filename: `factura-${orderNumber}.pdf`,
+          content: invoiceBuffer
+        }
+      ];
+    }
 
     await this.transporter.sendMail(mailOptions);
   }
@@ -235,7 +248,7 @@ export class MailService {
     // Calcular subtotal sin surcharge y el monto del surcharge
     const subtotalWithoutSurcharge = orderData.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
     const surchargeAmount = orderData.citySurcharge ? (subtotalWithoutSurcharge * orderData.citySurcharge / 100) : 0;
-    
+
     // Crear filas adicionales para mostrar el desglose del costo
     const surchargeRowHtml = orderData.citySurcharge && orderData.citySurcharge > 0 ? `
       <tr style="border-bottom: 1px solid #eee;">
@@ -301,6 +314,10 @@ export class MailService {
           <p style="font-size: 16px; line-height: 1.6; color: #555;">
             Te mantendremos informado sobre el estado de tu pedido. Si tienes alguna pregunta, no dudes en contactarnos.
           </p>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #555;">
+             Tu factura llegará adjunta en un correo electrónico separado una vez que tu orden haya sido completada.
+          </p>
           
           <p style="font-size: 16px; line-height: 1.6; color: #555; text-align: center;">
             <strong>¡Gracias por confiar en nosotros!</strong><br>
@@ -351,13 +368,13 @@ export class MailService {
 
     await this.transporter.sendMail(mailOptions);
   }
-  
+
   async sendRestockRequestEmail(to: string, productName: string) {
-  const mailOptions = {
-    from: process.env.MAIL_USER,
-    to,
-    subject: `Reabastecimiento solicitado para: ${productName}`,
-    html: `
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to,
+      subject: `Reabastecimiento solicitado para: ${productName}`,
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
         <h1 style="color: #333;">Solicitud de Reabastecimiento</h1>
         <p style="font-size: 16px; color: #555;">
@@ -378,20 +395,20 @@ export class MailService {
         </p>
       </div>
     `
-  };
+    };
 
-  await this.transporter.sendMail(mailOptions);
-}
+    await this.transporter.sendMail(mailOptions);
+  }
 
 
-async sendRoutesEmail(province: string, link: string) {
-  const appLink = "http://localhost:4200/vrp-list"; 
-  
-  const mailOptions = {
-    from: process.env.MAIL_USER,
-    to: process.env.MAIL_USER, // acá ponemos el del tranportista(?)
-    subject: `📍 Nueva ruta generada - ${province}`,
-    html: `
+  async sendRoutesEmail(province: string, link: string) {
+    const appLink = "http://localhost:4200/vrp-list";
+
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: process.env.MAIL_USER, // acá ponemos el del tranportista(?)
+      subject: `📍 Nueva ruta generada - ${province}`,
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
         <h2 style="color:#2c3e50;">Ruta generada para la provincia de ${province}</h2>
         <p>
@@ -417,18 +434,18 @@ async sendRoutesEmail(province: string, link: string) {
 
       </div>
     `
-  };
+    };
 
-  await this.transporter.sendMail(mailOptions);
-}
+    await this.transporter.sendMail(mailOptions);
+  }
 
 
-async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: string, rescheduleQuantity: number) {
-  const mailOptions = {
-    from: process.env.MAIL_USER,
-    to: to,
-    subject: 'Problema con tu dirección de entrega',
-    html: `
+  async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: string, rescheduleQuantity: number) {
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: to,
+      subject: 'Problema con tu dirección de entrega',
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #C94C4C; text-align: center;">No pudimos encontrar tu dirección</h1>
         
@@ -461,13 +478,13 @@ async sendAddressNotFoundEmail(to: string, firstName: string, orderNumber: strin
         </p>
       </div>
     `
-  };
+    };
 
-  await this.transporter.sendMail(mailOptions);
-}
+    await this.transporter.sendMail(mailOptions);
+  }
 
 
-async sendOrderInDistributionEmail(to: string, orderNumber: string) {
+  async sendOrderInDistributionEmail(to: string, orderNumber: string) {
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: to,
