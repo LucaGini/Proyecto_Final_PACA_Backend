@@ -1,18 +1,18 @@
 import { Router } from "express";
 import { controller } from "./order.controller.js";
-import { blockRoleIfLogged,authenticateAdmin,authenticateClient,authenticateDriver } from "../auth/authMiddleware.js";
+import { blockRoleIfLogged, authenticateAdmin, authenticateClient, authenticateDriver } from "../auth/authMiddleware.js";
 
 export const orderRouter = Router();
 
 //orderRouter.get('/driver/orders', controller.getOrdersForDriver);
 orderRouter.get('/driver/orders', authenticateDriver, controller.getOrdersForDriver);
 orderRouter.put('/bulk-status', controller.bulkUpdateStatus);
-orderRouter.get('/user/email/:email', authenticateClient,controller.findOrdersByEmail);
+orderRouter.get('/user/email/:email', authenticateClient, controller.findOrdersByEmail);
 orderRouter.get('/number/:orderNumber', controller.findByOrderNumber);
 orderRouter.get('/paginated', controller.findAllPaginated); // New paginated endpoint
 orderRouter.get('/user/:email/paginated', controller.findOrdersByEmailPaginated);
 orderRouter.get('/', controller.findAll);
 orderRouter.get('/:id', controller.findOne);
-orderRouter.post('/',blockRoleIfLogged, controller.create);
+orderRouter.post('/', blockRoleIfLogged, controller.create);
 orderRouter.put('/:id', controller.update);
 orderRouter.delete('/:id', authenticateAdmin, controller.remove);
