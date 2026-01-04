@@ -36,20 +36,30 @@ function getDateRangeUTC(startDate?: string, endDate?: string) {
 
 
 // --- Filtros generales de órdenes ---
-function buildOrderFilters(req: Request, excludeCancelled: boolean = true, onlyStatus?: string) {
+function buildOrderFilters(
+  req: Request,
+  excludeCancelled: boolean = true,
+  onlyStatus?: string,
+  dateField: 'orderDate' | 'updatedDate' = 'orderDate' // 👈 nuevo
+) {
   const { startDate, endDate } = req.query;
   const filters: any = {};
 
-  // Filtrar por estado específico si se pasa
   if (onlyStatus) {
     filters.status = onlyStatus;
   } else if (excludeCancelled) {
     filters.status = { $ne: 'cancelled' };
   }
 
-  // Rango de fechas UTC
-  const dateRange = getDateRangeUTC(startDate as string, endDate as string);
-  if (dateRange) filters.orderDate = dateRange;
+  const dateRange = getDateRangeUTC(
+    startDate as string,
+    endDate as string
+  );
+
+  if (dateRange) {
+    filters[dateField] = dateRange; // 👈 clave
+  }
+
   return filters;
 }
 
@@ -58,7 +68,7 @@ function buildOrderFilters(req: Request, excludeCancelled: boolean = true, onlyS
 
 async function getSalesByProvince(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
 
     const orders = await em.find(Order, filters, {
       populate: ['user.city.province'],
@@ -85,7 +95,7 @@ async function getSalesByCity(req: Request, res: Response) {
     const { province } = req.query;
     if (!province) return res.status(400).json({ message: 'La provincia es requerida' });
 
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders: Loaded<Order, 'user.city.province'>[] = await em.find(Order, filters, {
       populate: ['user.city.province'],
     });
@@ -112,7 +122,7 @@ async function getSalesByCity(req: Request, res: Response) {
 
 async function getSalesByCategory(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders = await em.find(Order, filters);
 
     const productIds = orders.flatMap(o => o.orderItems.map(i => i.productId));
@@ -144,7 +154,7 @@ async function getProductsByCategory(req: Request, res: Response) {
     const { category } = req.query;
     if (!category) return res.status(400).json({ message: 'La categoría es requerida' });
 
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders = await em.find(Order, filters);
     const productIds = orders.flatMap(o => o.orderItems.map(i => i.productId));
     const products = await em.find(Product, { id: { $in: productIds } }, { populate: ['category'] });
@@ -173,7 +183,7 @@ async function getProductsByCategory(req: Request, res: Response) {
 
 async function getTopProducts(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders = await em.find(Order, filters, { populate: ['orderItems'] });
 
     const productSales: Record<string, number> = {};
@@ -201,7 +211,7 @@ async function getTopProducts(req: Request, res: Response) {
 
 async function getWorstProducts(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders = await em.find(Order, filters, { populate: ['orderItems'] });
 
     const productSales: Record<string, number> = {};
@@ -231,7 +241,7 @@ async function getWorstProducts(req: Request, res: Response) {
 
 async function getTopCustomers(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     const orders: Loaded<Order, 'user'>[] = await em.find(Order, filters, { populate: ['user'] });
 
     const customerSales: Record<string, number> = {};
@@ -263,7 +273,7 @@ async function getTopCustomers(req: Request, res: Response) {
 
 async function getTopCancelledCustomers(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, false);
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
     filters.status = 'cancelled';
 
     const orders: Loaded<Order, 'user'>[] = await em.find(Order, filters, { populate: ['user'] });
@@ -399,7 +409,7 @@ async function getRevenueOverTime(req: Request, res: Response) {
 async function getTotalRevenue(req: Request, res: Response) {
   try {
     // Usamos el mismo filtro que para ingresos, pero SUMA GENERAL
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
 
     const orders = await em.find(Order, filters);
     let totalRevenue = 0;
