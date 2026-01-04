@@ -11,27 +11,14 @@ const em = orm.em;
 function getDateRangeUTC(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return null;
 
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-
-  console.log(
-    'Rango local:',
-    start.toString(),
-    'a',
-    end.toString()
-  );
-
-  console.log(
-    'Rango UTC:',
-    start.toISOString(),
-    'a',
-    end.toISOString()
-  );
-  return { $gte: start, $lte: end };
+  const startLocal = new Date(`${startDate}T00:00:00`);
+  const endLocal = new Date(`${endDate}T23:59:59.999`);
+  return {
+    $gte: startLocal,
+    $lte: endLocal
+  };
 }
+
 
 
 
@@ -40,7 +27,7 @@ function buildOrderFilters(
   req: Request,
   excludeCancelled: boolean = true,
   onlyStatus?: string,
-  dateField: 'orderDate' | 'updatedDate' = 'orderDate' // 👈 nuevo
+  dateField: 'orderDate' | 'updatedDate' = 'orderDate' // nuevo
 ) {
   const { startDate, endDate } = req.query;
   const filters: any = {};
@@ -57,11 +44,16 @@ function buildOrderFilters(
   );
 
   if (dateRange) {
-    filters[dateField] = dateRange; // 👈 clave
+    filters[dateField] = dateRange; // clave
   }
 
   return filters;
 }
+
+function buildRevenueFilters(req: Request) {
+  return buildOrderFilters(req, true, 'completed', 'updatedDate');
+}
+
 
 
 // ----------------- VENTAS -----------------
@@ -361,22 +353,7 @@ async function getOrderStatusDistribution(req: Request, res: Response) {
 
 async function getRevenueOverTime(req: Request, res: Response) {
   try {
-    const { startDate, endDate } = req.query;
-
-    const filters: any = {
-      status: 'completed',
-    };
-
-    // 🔹 Rango de fechas aplicado sobre updatedDate
-    const dateRange = getDateRangeUTC(
-      startDate as string,
-      endDate as string
-    );
-
-    if (dateRange) {
-      filters.updatedDate = dateRange;
-    }
-
+    const filters = buildRevenueFilters(req);
     const orders = await em.find(Order, filters);
 
     const revenueByDate: Record<string, number> = {};
@@ -389,9 +366,9 @@ async function getRevenueOverTime(req: Request, res: Response) {
         (revenueByDate[date] || 0) + Number(order.total || 0);
     }
 
-    const result = Object.entries(revenueByDate).map(
-      ([date, totalRevenue]) => ({ date, totalRevenue })
-    );
+    const result = Object.entries(revenueByDate)
+      .map(([date, totalRevenue]) => ({ date, totalRevenue }))
+      .sort((a, b) => a.date.localeCompare(b.date)); // 👈 orden cronológico
 
     res.status(200).json({
       message: 'Ingresos por día',
@@ -408,26 +385,26 @@ async function getRevenueOverTime(req: Request, res: Response) {
 
 async function getTotalRevenue(req: Request, res: Response) {
   try {
-    // Usamos el mismo filtro que para ingresos, pero SUMA GENERAL
-    const filters = buildOrderFilters(req, true, 'completed', 'updatedDate'); 
-
+    const filters = buildRevenueFilters(req);
     const orders = await em.find(Order, filters);
-    let totalRevenue = 0;
-    for (const order of orders) {
-      totalRevenue += Number(order.total) || 0;
-    }
+
+    const totalRevenue = orders.reduce(
+      (sum, order) => sum + Number(order.total || 0),
+      0
+    );
 
     res.status(200).json({
       message: 'Total revenue del período',
-      data: totalRevenue
+      data: totalRevenue,
     });
   } catch (error: any) {
     res.status(500).json({
       message: 'Internal server error',
-      error: error.message
+      error: error.message,
     });
   }
 }
+
 
 export const controller = {
   getSalesByProvince,
