@@ -351,22 +351,50 @@ async function getOrderStatusDistribution(req: Request, res: Response) {
 
 async function getRevenueOverTime(req: Request, res: Response) {
   try {
-    const filters = buildOrderFilters(req, true, 'completed'); 
+    const { startDate, endDate } = req.query;
+
+    const filters: any = {
+      status: 'completed',
+    };
+
+    // 🔹 Rango de fechas aplicado sobre updatedDate
+    const dateRange = getDateRangeUTC(
+      startDate as string,
+      endDate as string
+    );
+
+    if (dateRange) {
+      filters.updatedDate = dateRange;
+    }
+
     const orders = await em.find(Order, filters);
 
     const revenueByDate: Record<string, number> = {};
+
     for (const order of orders) {
-      if (!order.updatedDate) continue; 
+      if (!order.updatedDate) continue;
+
       const date = order.updatedDate.toISOString().split('T')[0];
-      revenueByDate[date] = (revenueByDate[date] || 0) + order.total;
+      revenueByDate[date] =
+        (revenueByDate[date] || 0) + Number(order.total || 0);
     }
 
-    const result = Object.entries(revenueByDate).map(([date, totalRevenue]) => ({ date, totalRevenue }));
-    res.status(200).json({ message: 'Ingresos por día', data: result });
+    const result = Object.entries(revenueByDate).map(
+      ([date, totalRevenue]) => ({ date, totalRevenue })
+    );
+
+    res.status(200).json({
+      message: 'Ingresos por día',
+      data: result,
+    });
   } catch (error: any) {
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error.message,
+    });
   }
 }
+
 
 async function getTotalRevenue(req: Request, res: Response) {
   try {
