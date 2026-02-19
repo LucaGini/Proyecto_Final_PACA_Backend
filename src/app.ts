@@ -2,7 +2,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //ver de eliminar esta linea en 
 
 import 'reflect-metadata';
 import cors from 'cors';
-import express, { Request, Response, NextFunction} from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { categoryRouter } from './category/category.routes.js'
 import { supplierRouter } from './supplier/supplier.routes.js';
 import { provinceRouter } from './province/province.routes.js';
@@ -23,7 +23,7 @@ import { createDefaultAdmin } from './user/admin.seed.js';
 import { vrpRouter } from './vrp/vrp.routes.js';
 import session from 'express-session';
 //import passport from './auth/passport.config.js';
-import {dashboardRouter} from './dashboard/dashboard.routes.js';
+import { dashboardRouter } from './dashboard/dashboard.routes.js';
 import { cronRouter } from './cron/cron.routes.js';
 
 
@@ -35,14 +35,14 @@ app.use(cors());
 
 
 app.use(cors({
-  origin: 'http://localhost:4200'
+  origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
 }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
+  cookie: {
     secure: false, // En producción cambiar a true con HTTPS
     maxAge: 24 * 60 * 60 * 1000 // 24 horas
   }
@@ -74,14 +74,14 @@ app.use('/api/chatbot-internal', chatbotInternalRouter); // Nueva API interna se
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/cron', cronRouter);
 
-const __filename = fileURLToPath(import.meta.url); 
-const __dirname = path.dirname(__filename); 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Ya no necesitamos servir archivos estáticos porque usamos Cloudinary
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use((_, res) => {
-  return res.status(404).send({message: 'Resource not found!'});
+  return res.status(404).send({ message: 'Resource not found!' });
 });
 
 const PORT = process.env.PORT || 0;

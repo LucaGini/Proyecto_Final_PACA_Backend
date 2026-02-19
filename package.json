@@ -5,6 +5,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "build": "tsc -p ./tsconfig.json",
+    "start": "node ./dist/src/app.js",
     "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/src/app.js\"",
     "test": "jest --detectOpenHandles"
   },
