@@ -31,12 +31,17 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors());
 
+const corsOptions = {
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:4200').replace(/\/$/, ''),
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // handle preflight for all routes
+
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
