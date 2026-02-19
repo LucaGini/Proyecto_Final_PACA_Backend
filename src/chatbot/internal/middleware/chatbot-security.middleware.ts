@@ -29,44 +29,44 @@ const RATE_LIMIT_CONFIG = {
 export const chatbotRateLimit = (req: Request, res: Response, next: NextFunction): void => {
   const key = RATE_LIMIT_CONFIG.keyGenerator(req);
   const now = Date.now();
-  
+
   // Limpiar entradas expiradas
   cleanExpiredRateLimitEntries(now);
-  
+
   const entry = rateLimitCache.get(key);
-  
+
   if (!entry) {
     // Primera request de esta IP
     rateLimitCache.set(key, {
       count: 1,
       resetTime: now + RATE_LIMIT_CONFIG.windowMs
     });
-    
+
     res.set({
       'X-RateLimit-Limit': RATE_LIMIT_CONFIG.maxRequests.toString(),
       'X-RateLimit-Remaining': (RATE_LIMIT_CONFIG.maxRequests - 1).toString(),
       'X-RateLimit-Reset': new Date(now + RATE_LIMIT_CONFIG.windowMs).toISOString()
     });
-    
+
     return next();
   }
-  
+
   if (now > entry.resetTime) {
     // La ventana ha expirado, resetear
     rateLimitCache.set(key, {
       count: 1,
       resetTime: now + RATE_LIMIT_CONFIG.windowMs
     });
-    
+
     res.set({
       'X-RateLimit-Limit': RATE_LIMIT_CONFIG.maxRequests.toString(),
       'X-RateLimit-Remaining': (RATE_LIMIT_CONFIG.maxRequests - 1).toString(),
       'X-RateLimit-Reset': new Date(now + RATE_LIMIT_CONFIG.windowMs).toISOString()
     });
-    
+
     return next();
   }
-  
+
   if (entry.count >= RATE_LIMIT_CONFIG.maxRequests) {
     // Rate limit excedido
     res.set({
@@ -74,9 +74,9 @@ export const chatbotRateLimit = (req: Request, res: Response, next: NextFunction
       'X-RateLimit-Remaining': '0',
       'X-RateLimit-Reset': new Date(entry.resetTime).toISOString()
     });
-    
+
     console.warn(`[CHATBOT-SECURITY] Rate limit exceeded for IP: ${key}`);
-    
+
     res.status(429).json({
       success: false,
       error: 'Too many requests. Please try again later.',
@@ -87,16 +87,16 @@ export const chatbotRateLimit = (req: Request, res: Response, next: NextFunction
     });
     return;
   }
-  
+
   // Incrementar contador
   entry.count++;
-  
+
   res.set({
     'X-RateLimit-Limit': RATE_LIMIT_CONFIG.maxRequests.toString(),
     'X-RateLimit-Remaining': (RATE_LIMIT_CONFIG.maxRequests - entry.count).toString(),
     'X-RateLimit-Reset': new Date(entry.resetTime).toISOString()
   });
-  
+
   next();
 };
 
@@ -129,7 +129,7 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
       return;
     }
   }
-  
+
   // Validar User-Agent (bloquear bots maliciosos conocidos)
   const userAgent = req.get('User-Agent');
   if (userAgent) {
@@ -141,11 +141,11 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
       'dirb',
       'gobuster'
     ];
-    
-    const isSuspicious = suspiciousUserAgents.some(suspicious => 
+
+    const isSuspicious = suspiciousUserAgents.some(suspicious =>
       userAgent.toLowerCase().includes(suspicious)
     );
-    
+
     if (isSuspicious) {
       console.warn(`[CHATBOT-SECURITY] Suspicious User-Agent blocked: ${userAgent} from IP: ${req.ip}`);
       res.status(403).json({
@@ -158,7 +158,7 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
       return;
     }
   }
-  
+
   // Validar tamaño de query parameters
   const queryString = req.url.split('?')[1];
   if (queryString && queryString.length > 500) {
@@ -171,7 +171,7 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
     });
     return;
   }
-  
+
   // Agregar headers de seguridad
   res.set({
     'X-Content-Type-Options': 'nosniff',
@@ -179,7 +179,7 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin'
   });
-  
+
   next();
 };
 
@@ -188,7 +188,7 @@ export const validateChatbotRequest = (req: Request, res: Response, next: NextFu
  */
 export const validateSearchParams = (req: Request, res: Response, next: NextFunction): void => {
   const searchTerm = req.query.q as string;
-  
+
   if (!searchTerm) {
     res.status(400).json({
       success: false,
@@ -199,7 +199,7 @@ export const validateSearchParams = (req: Request, res: Response, next: NextFunc
     });
     return;
   }
-  
+
   // Validar longitud del término de búsqueda
   if (searchTerm.length < 2) {
     res.status(400).json({
@@ -211,7 +211,7 @@ export const validateSearchParams = (req: Request, res: Response, next: NextFunc
     });
     return;
   }
-  
+
   if (searchTerm.length > 50) {
     res.status(400).json({
       success: false,
@@ -222,7 +222,7 @@ export const validateSearchParams = (req: Request, res: Response, next: NextFunc
     });
     return;
   }
-  
+
   // Validar caracteres peligrosos
   const dangerousChars = /<script|javascript:|data:|vbscript:|on\w+=/i;
   if (dangerousChars.test(searchTerm)) {
@@ -236,7 +236,7 @@ export const validateSearchParams = (req: Request, res: Response, next: NextFunc
     });
     return;
   }
-  
+
   next();
 };
 
@@ -245,7 +245,7 @@ export const validateSearchParams = (req: Request, res: Response, next: NextFunc
  */
 export const validateProductId = (req: Request, res: Response, next: NextFunction): void => {
   const productId = req.params.id;
-  
+
   if (!productId) {
     res.status(400).json({
       success: false,
@@ -256,7 +256,7 @@ export const validateProductId = (req: Request, res: Response, next: NextFunctio
     });
     return;
   }
-  
+
   // Validar formato de ObjectId
   const objectIdRegex = /^[0-9a-fA-F]{24}$/;
   if (!objectIdRegex.test(productId)) {
@@ -269,7 +269,7 @@ export const validateProductId = (req: Request, res: Response, next: NextFunctio
     });
     return;
   }
-  
+
   next();
 };
 
@@ -278,7 +278,7 @@ export const validateProductId = (req: Request, res: Response, next: NextFunctio
  */
 export const chatbotErrorHandler = (error: Error, req: Request, res: Response, next: NextFunction): void => {
   console.error(`[CHATBOT-ERROR] ${req.method} ${req.url}:`, error);
-  
+
   // No revelar detalles internos del error
   res.status(500).json({
     success: false,
@@ -297,13 +297,13 @@ export const getRateLimitStats = (): { activeEntries: number; totalRequests: num
   const now = Date.now();
   let totalRequests = 0;
   let activeEntries = 0;
-  
+
   for (const [key, entry] of rateLimitCache.entries()) {
     if (now <= entry.resetTime) {
       activeEntries++;
       totalRequests += entry.count;
     }
   }
-  
+
   return { activeEntries, totalRequests };
 };

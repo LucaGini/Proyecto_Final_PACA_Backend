@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PACA_KNOWLEDGE_BASE, FALLBACK_RESPONSES } from './faq.data.js';
+import { ChatbotDataService } from './internal/chatbot-data.service.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -7,6 +8,7 @@ dotenv.config();
 export class ChatbotService {
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private dataService: ChatbotDataService;
 
   constructor() {
     if (!process.env.GEMINI_API_KEY) {
@@ -14,7 +16,7 @@ export class ChatbotService {
     }
 
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ 
+    this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
@@ -23,6 +25,7 @@ export class ChatbotService {
         maxOutputTokens: 300,
       }
     });
+    this.dataService = new ChatbotDataService();
   }
 
   async generateResponse(userMessage: string): Promise<string> {
@@ -77,7 +80,7 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
 
   private isResponseRelevant(response: string): boolean {
     const pacaKeywords = [
-      'paca', 'harina', 'agroecológic', 'cooperativa', 'orgánic', 
+      'paca', 'harina', 'agroecológic', 'cooperativa', 'orgánic',
       'sustentable', 'pesticida', 'tierra', 'producto', 'envío',
       'pedido', 'stock', 'calidad', 'trabajo colectivo'
     ];
@@ -100,7 +103,7 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
       }
 
       let contextPrompt = PACA_KNOWLEDGE_BASE;
-      
+
       if (conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-4); // Últimas 4 interacciones
         contextPrompt += `\n\nCONTEXTO DE LA CONVERSACIÓN:\n${recentHistory.join('\n')}`;
@@ -135,30 +138,28 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
     ];
 
     const lowerMessage = message.toLowerCase();
-    
+
     // Debe contener al menos una palabra clave de stock Y una de producto
     const hasStockKeyword = stockKeywords.some(keyword => lowerMessage.includes(keyword));
     const hasProductKeyword = productKeywords.some(keyword => lowerMessage.includes(keyword));
-    
+
     return hasStockKeyword && hasProductKeyword;
   }
 
   /**
-   * Maneja las consultas de stock usando la API interna segura
+   * Maneja las consultas de stock directamente a través del ChatbotDataService
    */
   private async handleStockQuery(message: string): Promise<string> {
     try {
       // Extraer nombre del producto de la consulta (si se especifica)
       const productName = this.extractProductName(message);
-      
+
       if (productName) {
-        // Consulta específica de un producto
         return await this.getSpecificProductStockSafe(productName);
       } else {
-        // Consulta general de stock
         return await this.getAllProductsStockSafe();
       }
-      
+
     } catch (error) {
       console.error('Error handling stock query:', error);
       return "Disculpa, hay un problema técnico al consultar el stock. Por favor intenta nuevamente en unos minutos.";
@@ -170,8 +171,7 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
    */
   private extractProductName(message: string): string | null {
     const lowerMessage = message.toLowerCase();
-    
-    // Buscar patrones comunes de nombres de productos
+
     const patterns = [
       /harina\s+de\s+(\w+)/gi,
       /harina\s+(\w+)/gi,
@@ -190,30 +190,17 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
   }
 
   /**
-   * Obtiene el stock de un producto específico usando la API interna
+   * Obtiene el stock de un producto específico usando ChatbotDataService directamente
    */
   private async getSpecificProductStockSafe(productName: string): Promise<string> {
     try {
-      // Llamar a la API interna en lugar de acceso directo a la DB
-      const response = await fetch(`http://localhost:3000/api/chatbot-internal/search?q=${encodeURIComponent(productName)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'ChatbotService/1.0'
-        }
-      });
+      const result = await this.dataService.searchPublicProducts(productName);
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.success || !data.data.products || data.data.products.length === 0) {
+      if (!result.products || result.products.length === 0) {
         return `No encontré productos que coincidan con "${productName}". ¿Podrías verificar el nombre o consultar nuestro catálogo completo?`;
       }
 
-      const products = data.data.products;
+      const products = result.products;
 
       if (products.length === 1) {
         const product = products[0];
@@ -221,12 +208,12 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
       }
 
       // Múltiples productos encontrados
-      let response_text = `Encontré varios productos relacionados con "${productName}":\n\n`;
-      products.forEach((product: any, index: number) => {
-        response_text += `${index + 1}. **${product.name}** - Stock: ${product.stock} unidades\n`;
+      let responseText = `Encontré varios productos relacionados con "${productName}":\n\n`;
+      products.forEach((product, index) => {
+        responseText += `${index + 1}. **${product.name}** - Stock: ${product.stock} unidades\n`;
       });
-      
-      return response_text;
+
+      return responseText;
 
     } catch (error) {
       console.error('Error getting specific product stock:', error);
@@ -235,40 +222,27 @@ RESPUESTA (máximo 200 palabras, tono amigable y profesional):`;
   }
 
   /**
-   * Obtiene el stock de todos los productos activos usando la API interna
+   * Obtiene el stock de todos los productos activos usando ChatbotDataService directamente
    */
   private async getAllProductsStockSafe(): Promise<string> {
     try {
-      // Llamar a la API interna en lugar de acceso directo a la DB
-      const response = await fetch('http://localhost:3000/api/chatbot-internal/stock', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'ChatbotService/1.0'
-        }
-      });
+      const result = await this.dataService.getPublicStock();
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.success || !data.data.products || data.data.products.length === 0) {
+      if (!result.products || result.products.length === 0) {
         return "Actualmente no tenemos productos disponibles en nuestro catálogo.";
       }
 
-      const products = data.data.products;
-      let response_text = "📋 **Stock actual de nuestros productos PACA:**\n\n";
-      
-      products.forEach((product: any, index: number) => {
+      const products = result.products;
+      let responseText = "📋 **Stock actual de nuestros productos PACA:**\n\n";
+
+      products.forEach((product) => {
         const status = product.isAvailable ? '✅' : '❌';
-        response_text += `${status} **${product.name}**: ${product.stock} unidades\n`;
+        responseText += `${status} **${product.name}**: ${product.stock} unidades\n`;
       });
 
-      response_text += "\n💡 *Si necesitas más información sobre algún producto específico, solo mencionalo por nombre.*";
-      
-      return response_text;
+      responseText += "\n💡 *Si necesitas más información sobre algún producto específico, solo mencionalo por nombre.*";
+
+      return responseText;
 
     } catch (error) {
       console.error('Error getting all products stock:', error);
